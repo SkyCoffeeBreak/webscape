@@ -1,0 +1,2230 @@
+/**
+ * Server-Synced Bank System
+ * Handles all banking operations with full server synchronization
+ */
+
+// Bank configuration
+const SLOTS_PER_TAB = 140;
+const MAX_TABS = 9;
+const TOTAL_BANK_SIZE = SLOTS_PER_TAB * MAX_TABS;
+
+/**
+ * Get display icon for an item
+ */
+function getItemDisplayIcon(item) {
+  if (!item) return '📦';
+  
+  // Try to get item definition
+  const itemDef = window.inventoryModule && window.inventoryModule.getItemDefinition
+    ? window.inventoryModule.getItemDefinition(item.id)
+    : null;
+  
+  if (itemDef && itemDef.icon) {
+    return itemDef.icon;
+  }
+  
+  // Fallback icons based on item ID
+  const iconMap = {
+    'coins': '🪙',
+    'gp': '🪙',
+    'copper_ore': '🟤',
+    'tin_ore': '⚪',
+    'iron_ore': '🔶',
+    'coal': '⚫',
+    'gold_ore': '🟡',
+    'mithril_ore': '🔵',
+    'adamantite_ore': '🟢',
+    'runite_ore': '🔴',
+    'bronze_bar': '🟫',
+    'iron_bar': '🔸',
+    'steel_bar': '⚫',
+    'gold_bar': '🟨',
+    'mithril_bar': '🔷',
+    'adamantite_bar': '🟩',
+    'runite_bar': '🟥',
+    'apple': '🍎',
+    'potion': '🧪',
+    'logs': '🪵',
+    'oak_logs': '🪵',
+    'willow_logs': '🪵',
+    'axe': '🪓',
+    'pickaxe': '⛏️',
+    'sword': '⚔️'
+  };
+  
+  return iconMap[item.id] || '📦';
+}
+
+// Bank state
+let playerBank = new Array(TOTAL_BANK_SIZE).fill(null); // All tabs combined
+let playerBankTabs = Array.from({ length: MAX_TABS }, (_, i) => ({
+  id: i,
+  name: i === 0 ? 'Main' : `Tab ${i + 1}`,
+  icon: i === 0 ? '📦' : '📁',
+  customIcon: null // Player can set custom icon
+}));
+
+let bankInterface = {
+  open: false,
+  noteMode: false,
+  selectedSlot: -1,
+  selectedItem: null,
+  currentTab: 0 // Currently active tab
+};
+
+let bankOverlay = null;
+
+/**
+ * Open the bank interface
+ */
+function openBank() {
+  if (bankInterface.open) return;
+  
+  console.log('🏦 Opening bank interface...');
+  
+  // Request bank data from server if online
+  if (window.isUserOnline && window.isUserOnline() && window.getWebSocket) {
+    const websocket = window.getWebSocket();
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      console.log('📤 Requesting bank data from server');
+      websocket.send(JSON.stringify({
+        type: 'bank-open-request',
+        timestamp: Date.now()
+      }));
+      return; // Wait for server response
+    }
+  }
+  
+  // Offline mode - open immediately
+  displayBankInterface();
+}
+
+/**
+ * Display the bank interface
+ */
+function displayBankInterface() {
+  if (bankOverlay) {
+    bankOverlay.remove();
+  }
+  
+  bankOverlay = createBankInterface();
+  document.body.appendChild(bankOverlay);
+  bankInterface.open = true;
+  
+  console.log('🏦 Bank interface displayed');
+}
+
+/**
+ * Close the bank interface
+ */
+function closeBank() {
+  if (!bankInterface.open) return;
+  
+  console.log('🏦 Closing bank');
+  
+  // Hide any open context menus
+  hideBankContextMenus();
+  
+  if (bankOverlay) {
+    bankOverlay.remove();
+    bankOverlay = null;
+  }
+  
+  bankInterface.open = false;
+  bankInterface.selectedSlot = -1;
+  bankInterface.selectedItem = null;
+  
+  // Sync bank data with server if online
+  if (window.isUserOnline && window.isUserOnline() && window.getWebSocket) {
+    const websocket = window.getWebSocket();
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      console.log('📤 Syncing bank data with server on close');
+      websocket.send(JSON.stringify({
+        type: 'bank-sync',
+        bankData: playerBank
+      }));
+    }
+  }
+}
+
+/**
+ * Create the bank interface HTML
+ */
+function createBankInterface() {
+  console.log('🏦 Creating bank interface with tabs');
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'bank-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    font-family: Arial, sans-serif;
+  `;
+  
+  const bankWindow = document.createElement('div');
+  bankWindow.id = 'bank-window';
+  bankWindow.style.cssText = `
+    background: #2c3e50;
+    border: 2px solid #34495e;
+    border-radius: 8px;
+    width: 95%;
+    max-width: 1000px;
+    height: 85%;
+    max-height: 700px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  `;
+  
+  // Bank header with tabs and controls
+  const bankHeader = document.createElement('div');
+  bankHeader.id = 'bank-header';
+  bankHeader.style.cssText = `
+    background: #34495e;
+    padding: 10px 15px;
+    border-bottom: 1px solid #2c3e50;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 50px;
+  `;
+  
+  // Tab container
+  const tabContainer = document.createElement('div');
+  tabContainer.id = 'bank-tabs';
+  tabContainer.style.cssText = `
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  `;
+  
+  // Create tabs
+  playerBankTabs.forEach((tab, index) => {
+    const tabElement = document.createElement('div');
+    tabElement.className = `bank-tab ${index === bankInterface.currentTab ? 'active' : ''}`;
+    tabElement.dataset.tabIndex = index;
+    tabElement.style.cssText = `
+      background: ${index === bankInterface.currentTab ? '#3498db' : '#2c3e50'};
+      border: 1px solid #34495e;
+      border-radius: 4px;
+      padding: 8px 12px;
+      cursor: pointer;
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 60px;
+      justify-content: center;
+      position: relative;
+    `;
+    
+    // Tab icon (right-clickable to change)
+    const tabIcon = document.createElement('span');
+    tabIcon.className = 'tab-icon';
+    tabIcon.textContent = tab.customIcon || tab.icon;
+    tabIcon.style.cssText = `
+      font-size: 16px;
+      cursor: pointer;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+    `;
+    
+    // Tab name (for tab 0, don't show text, just icon)
+    if (index > 0) {
+      const tabText = document.createElement('span');
+      tabText.textContent = index.toString();
+      tabText.style.fontSize = '12px';
+      tabElement.appendChild(tabText);
+    }
+    
+    tabElement.appendChild(tabIcon);
+    
+    // Tab click handler
+    tabElement.addEventListener('click', (e) => {
+      e.stopPropagation();
+      switchToTab(index);
+    });
+    
+    // Tab icon right-click handler for customization
+    tabIcon.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showTabIconSelector(index);
+    });
+    
+    // Tab drag and drop functionality for cross-tab item movement
+    tabElement.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      // Highlight tab when item is dragged over it
+      if (e.dataTransfer.types.includes('text/plain')) {
+        tabElement.style.background = '#e74c3c';
+        tabElement.style.transform = 'scale(1.05)';
+      }
+    });
+    
+    tabElement.addEventListener('dragleave', (e) => {
+      // Reset tab appearance when drag leaves
+      if (index === bankInterface.currentTab) {
+        tabElement.style.background = '#3498db';
+      } else {
+        tabElement.style.background = '#2c3e50';
+      }
+      tabElement.style.transform = 'scale(1)';
+    });
+    
+    tabElement.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Reset tab appearance
+      if (index === bankInterface.currentTab) {
+        tabElement.style.background = '#3498db';
+      } else {
+        tabElement.style.background = '#2c3e50';
+      }
+      tabElement.style.transform = 'scale(1)';
+      
+      try {
+        const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+        console.log(`🔄 Item dropped on tab ${index}:`, dragData);
+        
+        if (dragData.type === 'bank-item') {
+          // Move item to this tab (find first available slot)
+          moveItemToTab(dragData.fromSlot, index);
+        } else if (dragData.type === 'inventory-item') {
+          // Switch to this tab first, then deposit
+          switchToTab(index);
+          setTimeout(() => {
+            depositItem(dragData.fromSlot);
+          }, 100);
+        }
+      } catch (error) {
+        console.error('Error handling tab drop:', error);
+      }
+    });
+    
+    // Tab hover effects
+    tabElement.addEventListener('mouseenter', () => {
+      if (index !== bankInterface.currentTab) {
+        tabElement.style.background = '#34495e';
+      }
+    });
+    
+    tabElement.addEventListener('mouseleave', () => {
+      if (index !== bankInterface.currentTab) {
+        tabElement.style.background = '#2c3e50';
+      }
+    });
+    
+    tabContainer.appendChild(tabElement);
+  });
+  
+  // Controls container (note mode toggle and close button)
+  const controlsContainer = document.createElement('div');
+  controlsContainer.style.cssText = `
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  `;
+  
+  // Note mode toggle
+  const noteToggle = document.createElement('button');
+  noteToggle.id = 'note-mode-toggle';
+  noteToggle.textContent = bankInterface.noteMode ? '📝 Note Mode' : '📦 Item Mode';
+  noteToggle.style.cssText = `
+    background: ${bankInterface.noteMode ? '#e74c3c' : '#2c3e50'};
+    color: white;
+    border: 1px solid #34495e;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    transition: all 0.2s;
+  `;
+  
+  noteToggle.addEventListener('click', () => {
+    bankInterface.noteMode = !bankInterface.noteMode;
+    noteToggle.textContent = bankInterface.noteMode ? '📝 Note Mode' : '📦 Item Mode';
+    noteToggle.style.background = bankInterface.noteMode ? '#e74c3c' : '#2c3e50';
+    console.log(`🏦 Note mode ${bankInterface.noteMode ? 'enabled' : 'disabled'}`);
+  });
+  
+  // Close button
+  const closeButton = document.createElement('button');
+  closeButton.textContent = '✕';
+  closeButton.style.cssText = `
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+  `;
+  
+  closeButton.addEventListener('click', closeBank);
+  
+  controlsContainer.appendChild(noteToggle);
+  controlsContainer.appendChild(closeButton);
+  
+  bankHeader.appendChild(tabContainer);
+  bankHeader.appendChild(controlsContainer);
+  
+  // Bank content area
+  const bankContent = document.createElement('div');
+  bankContent.id = 'bank-content';
+  bankContent.style.cssText = `
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    gap: 15px;
+    padding: 10px;
+  `;
+  
+  // Create bank sections
+  const bankSection = createBankSection();
+  const inventorySection = createInventorySection();
+  
+  bankContent.appendChild(bankSection);
+  bankContent.appendChild(inventorySection);
+  
+  // Append all sections to bank window
+  bankWindow.appendChild(bankHeader);
+  bankWindow.appendChild(bankContent);
+  overlay.appendChild(bankWindow);
+  
+  // Add escape key handler
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') {
+      closeBank();
+    }
+  };
+  
+  document.addEventListener('keydown', handleEscape);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closeBank();
+    }
+  });
+  
+  // Store reference to remove event listener later
+  overlay._handleEscape = handleEscape;
+  
+  return overlay;
+}
+
+/**
+ * Create the inventory section
+ */
+function createInventorySection() {
+  const section = document.createElement('div');
+  section.className = 'inventory-section';
+  section.style.cssText = `
+    flex: 1;
+    padding: 15px;
+    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+    border-radius: 8px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    min-height: 500px;
+    max-height: 500px;
+    overflow-y: auto;
+    min-width: 200px;
+  `;
+  
+  const header = document.createElement('h3');
+  header.textContent = '🎒 Inventory';
+  header.style.cssText = `
+    margin: 0 0 10px 0;
+    color: #ecf0f1;
+    font-size: 15px;
+    text-align: center;
+  `;
+  
+  // Add Deposit All button
+  const depositAllBtn = document.createElement('button');
+  depositAllBtn.textContent = 'Deposit All';
+  depositAllBtn.className = 'deposit-all-btn';
+  depositAllBtn.style.cssText = `
+    width: 100%;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  `;
+  
+  depositAllBtn.addEventListener('click', () => {
+    console.log('🏦 Deposit All button clicked');
+    depositAllItems();
+  });
+  
+  depositAllBtn.addEventListener('mouseenter', () => {
+    depositAllBtn.style.background = 'linear-gradient(135deg, #c0392b 0%, #a93226 100%)';
+    depositAllBtn.style.transform = 'translateY(-1px)';
+    depositAllBtn.style.boxShadow = '0 3px 6px rgba(0, 0, 0, 0.3)';
+  });
+  
+  depositAllBtn.addEventListener('mouseleave', () => {
+    depositAllBtn.style.background = 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)';
+    depositAllBtn.style.transform = 'translateY(0)';
+    depositAllBtn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
+  });
+  
+  const grid = document.createElement('div');
+  grid.className = 'bank-inventory-grid';
+  grid.style.cssText = `
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    max-height: 420px;
+    overflow-y: auto;
+  `;
+  
+  const playerInventory = window.inventoryModule ? window.inventoryModule.getPlayerInventory() : [];
+  
+  for (let i = 0; i < playerInventory.length; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'bank-inventory-slot';
+    slot.dataset.slot = i;
+    slot.style.cssText = `
+      width: 42px;
+      height: 42px;
+      border: 1px solid #7f8c8d;
+      background: #ecf0f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      font-size: 16px;
+      border-radius: 3px;
+      transition: all 0.2s ease;
+    `;
+    
+    const item = playerInventory[i];
+    if (item && window.inventoryModule) {
+      const itemDef = window.inventoryModule.getItemDefinition(item.id);
+      
+      if (itemDef) {
+        slot.classList.add('occupied');
+        const tintStyle = itemDef.colorTint ? `color: ${itemDef.colorTint};` : '';
+        const tintClass = itemDef.colorTint ? 'tinted' : '';
+        
+        // Check if this is a noted item - use EXACT same logic as inventory
+        if (window.inventoryModuleFunctions && window.inventoryModuleFunctions.isItemNoted && window.inventoryModuleFunctions.isItemNoted(item)) {
+          // Display noted item with special icon - EXACT same as inventory
+          const baseIcon = itemDef.getIcon ? itemDef.getIcon(1) : itemDef.icon;
+          const htmlContent = `
+            <div class="inventory-item ${tintClass}" style="${tintStyle}">
+              <div class="noted-item-container">
+                <span class="note-background">📜</span>
+                <span class="noted-icon">${baseIcon}</span>
+              </div>
+              ${item.quantity > 1 ? `<div class="inventory-item-count">${item.quantity}</div>` : ''}
+            </div>
+          `;
+          slot.innerHTML = htmlContent;
+          slot.title = `${itemDef.name} (noted) (${item.quantity || 1}) - Click to deposit`;
+        } else {
+          // Regular item display - EXACT same as inventory
+          const icon = getItemDisplayIcon(item);
+          slot.textContent = icon;
+          
+          // Add quantity if > 1
+          if (item.quantity && item.quantity > 1) {
+            const quantityElement = document.createElement('span');
+            quantityElement.className = 'item-quantity';
+            quantityElement.textContent = item.quantity;
+            quantityElement.style.cssText = `
+              position: absolute;
+              bottom: 2px;
+              right: 2px;
+              background: rgba(0, 0, 0, 0.7);
+              color: white;
+              font-size: 10px;
+              border-radius: 2px;
+              padding: 1px 3px;
+              font-weight: bold;
+            `;
+            slot.appendChild(quantityElement);
+          }
+        }
+      } else {
+        // Fallback for unknown items
+        slot.classList.add('occupied');
+        slot.innerHTML = `
+          <div class="inventory-item">
+            📦
+            ${item.quantity > 1 ? `<div class="inventory-item-count">${item.quantity}</div>` : ''}
+          </div>
+        `;
+        slot.title = `Unknown Item${item.quantity > 1 ? ` x${item.quantity}` : ''} - Click to deposit`;
+      }
+      
+      // Add deposit functionality
+      slot.addEventListener('click', () => {
+        depositItem(i);
+      });
+      
+      // Add right-click context menu for deposit options
+      slot.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showBankDepositMenu(e, i);
+      });
+      
+      // Add drag functionality for inventory items
+      addInventorySlotDragFunctionality(slot, i);
+      
+      slot.addEventListener('mouseenter', () => {
+        slot.style.background = '#3498db';
+        slot.style.borderColor = '#2980b9';
+      });
+      
+      slot.addEventListener('mouseleave', () => {
+        slot.style.background = '#ecf0f1';
+        slot.style.borderColor = '#7f8c8d';
+      });
+    } else {
+      slot.classList.remove('occupied');
+      slot.style.opacity = '0.3';
+    }
+    
+    grid.appendChild(slot);
+  }
+  
+  // Add styling for inventory items in bank interface
+  const style = document.createElement('style');
+  style.textContent = `
+    .inventory-item {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .inventory-item-count {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #ffff00;
+      font-size: 10px;
+      padding: 1px 3px;
+      border-radius: 2px;
+      font-weight: bold;
+      line-height: 1;
+      min-width: 12px;
+      text-align: center;
+      pointer-events: none;
+    }
+    
+    .noted-item-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .note-background {
+      position: absolute;
+      font-size: 1.2em;
+      z-index: 1;
+      filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.8));
+    }
+    
+    .noted-icon {
+      position: relative;
+      z-index: 2;
+      font-size: 0.7em;
+      transform: translate(3px, -2px);
+      filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
+    }
+    
+    .bank-inventory-slot.dragging,
+    .bank-slot.dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    
+    .bank-slot.drag-over {
+      background: #f39c12 !important;
+      border-color: #e67e22 !important;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  section.appendChild(header);
+  section.appendChild(depositAllBtn);
+  section.appendChild(grid);
+  
+  return section;
+}
+
+/**
+ * Add drag functionality to inventory slots in the bank interface
+ */
+function addInventorySlotDragFunctionality(slot, slotIndex) {
+  slot.draggable = true;
+  
+  slot.addEventListener('dragstart', (e) => {
+    console.log(`🔄 Starting drag from inventory slot ${slotIndex}`);
+    const playerInventory = window.inventoryModule ? window.inventoryModule.getPlayerInventory() : [];
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      type: 'inventory-item',
+      fromSlot: slotIndex,
+      item: playerInventory[slotIndex]
+    }));
+    slot.classList.add('dragging');
+  });
+  
+  slot.addEventListener('dragend', (e) => {
+    console.log(`🔄 Ending drag from inventory slot ${slotIndex}`);
+    slot.classList.remove('dragging');
+  });
+}
+
+/**
+ * Create the bank section
+ */
+function createBankSection() {
+  const bankSection = document.createElement('div');
+  bankSection.id = 'bank-section';
+  bankSection.style.cssText = `
+    flex: 3;
+    background: #34495e;
+    border: 1px solid #2c3e50;
+    border-radius: 6px;
+    padding: 15px;
+    overflow-y: auto;
+    min-height: 500px;
+    max-height: 500px;
+  `;
+  
+  const sectionTitle = document.createElement('h3');
+  sectionTitle.textContent = '🏦 Bank';
+  sectionTitle.style.cssText = `
+    margin: 0 0 15px 0;
+    color: #ecf0f1;
+    font-size: 16px;
+    text-align: center;
+  `;
+  
+  const bankGrid = document.createElement('div');
+  bankGrid.id = 'bank-grid';
+  bankGrid.style.cssText = `
+    display: grid;
+    grid-template-columns: repeat(14, 1fr);
+    gap: 3px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding: 5px;
+    background: #2c3e50;
+    border-radius: 4px;
+  `;
+  
+  // Create slots for current tab only (140 slots)
+  for (let tabSlot = 0; tabSlot < SLOTS_PER_TAB; tabSlot++) {
+    const globalSlot = tabSlotToGlobalSlot(tabSlot);
+    const slot = document.createElement('div');
+    slot.className = 'bank-slot';
+    slot.dataset.tabSlot = tabSlot;
+    slot.dataset.globalSlot = globalSlot;
+    slot.style.cssText = `
+      width: 40px;
+      height: 40px;
+      border: 2px solid #34495e;
+      border-radius: 4px;
+      background: #2c3e50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    `;
+    
+    const item = playerBank[globalSlot];
+    if (item) {
+      slot.classList.add('occupied');
+      
+      // Item icon
+      const itemIcon = document.createElement('div');
+      itemIcon.className = 'inventory-item-icon';
+      itemIcon.textContent = getItemDisplayIcon(item);
+      itemIcon.style.cssText = `
+        font-size: 18px;
+        position: relative;
+        z-index: 1;
+      `;
+      
+      // Add noted indicator if item is noted
+      if (item.noted && window.inventoryModuleFunctions) {
+        if (window.inventoryModuleFunctions.isItemNoted(item)) {
+          const notedIndicator = document.createElement('div');
+          notedIndicator.className = 'noted-indicator';
+          notedIndicator.textContent = '📝';
+          notedIndicator.style.cssText = `
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            font-size: 10px;
+            z-index: 3;
+            color: #f39c12;
+          `;
+          slot.appendChild(notedIndicator);
+        }
+      }
+      
+      // Quantity
+      if (item.quantity && item.quantity > 1) {
+        const quantityLabel = document.createElement('div');
+        quantityLabel.className = 'inventory-item-quantity';
+        quantityLabel.textContent = item.quantity;
+        quantityLabel.style.cssText = `
+          position: absolute;
+          bottom: 1px;
+          right: 2px;
+          background: rgba(0, 0, 0, 0.7);
+          color: #f1c40f;
+          font-size: 10px;
+          font-weight: bold;
+          padding: 1px 3px;
+          border-radius: 2px;
+          line-height: 1;
+          z-index: 2;
+        `;
+        slot.appendChild(quantityLabel);
+      }
+      
+      slot.appendChild(itemIcon);
+      slot.style.borderColor = '#3498db';
+      slot.style.background = '#34495e';
+      
+      // Add withdraw functionality
+      slot.addEventListener('click', () => {
+        withdrawItem(globalSlot);
+      });
+      
+      // Add right-click context menu for withdraw options
+      slot.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showBankWithdrawMenu(e, globalSlot);
+      });
+      
+      // Add drag and drop functionality
+      addBankSlotDragAndDrop(slot, globalSlot);
+      
+      slot.addEventListener('mouseenter', () => {
+        slot.style.background = '#e74c3c';
+        slot.style.borderColor = '#c0392b';
+      });
+      
+      slot.addEventListener('mouseleave', () => {
+        slot.style.background = '#34495e';
+        slot.style.borderColor = '#3498db';
+      });
+    } else {
+      slot.classList.remove('occupied');
+      slot.style.background = '#2c3e50';
+      slot.style.borderColor = '#34495e';
+      
+      // Allow dropping items into empty slots
+      slot.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        slot.style.background = '#3498db';
+        slot.style.borderColor = '#2980b9';
+      });
+      
+      slot.addEventListener('dragleave', () => {
+        slot.style.background = '#2c3e50';
+        slot.style.borderColor = '#34495e';
+      });
+      
+      slot.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const draggedType = e.dataTransfer.getData('text/plain');
+        
+        if (draggedType.startsWith('bank:')) {
+          // Bank item being moved
+          const fromGlobalSlot = parseInt(draggedType.split(':')[1]);
+          const toGlobalSlot = globalSlot;
+          swapBankItems(fromGlobalSlot, toGlobalSlot);
+        } else if (draggedType.startsWith('inventory:')) {
+          // Inventory item being deposited
+          const inventorySlot = parseInt(draggedType.split(':')[1]);
+          depositItem(inventorySlot);
+        }
+        
+        slot.style.background = '#2c3e50';
+        slot.style.borderColor = '#34495e';
+      });
+    }
+    
+    bankGrid.appendChild(slot);
+  }
+  
+  bankSection.appendChild(sectionTitle);
+  bankSection.appendChild(bankGrid);
+  
+  return bankSection;
+}
+
+/**
+ * Add drag and drop functionality to bank slots
+ */
+function addBankSlotDragAndDrop(slot, slotIndex) {
+  // Make items draggable
+  if (playerBank[slotIndex]) {
+    slot.draggable = true;
+    
+    slot.addEventListener('dragstart', (e) => {
+      console.log(`🔄 Starting drag from bank slot ${slotIndex}`);
+      const tabIndex = Math.floor(slotIndex / SLOTS_PER_TAB);
+      e.dataTransfer.setData('text/plain', JSON.stringify({
+        type: 'bank-item',
+        fromSlot: slotIndex,
+        fromTab: tabIndex,
+        item: playerBank[slotIndex]
+      }));
+      slot.classList.add('dragging');
+    });
+    
+    slot.addEventListener('dragend', (e) => {
+      console.log(`🔄 Ending drag from bank slot ${slotIndex}`);
+      slot.classList.remove('dragging');
+    });
+  }
+  
+  // Allow items to be dropped on any slot
+  slot.addEventListener('dragover', (e) => {
+    e.preventDefault(); // Allow drop
+    slot.classList.add('drag-over');
+  });
+  
+  slot.addEventListener('dragleave', (e) => {
+    slot.classList.remove('drag-over');
+  });
+  
+  slot.addEventListener('drop', (e) => {
+    e.preventDefault();
+    slot.classList.remove('drag-over');
+    
+    try {
+      const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+      console.log(`🔄 Drop event in bank slot ${slotIndex}:`, dragData);
+      
+      if (dragData.type === 'bank-item' && dragData.fromSlot !== slotIndex) {
+        // Get target tab
+        const targetTab = Math.floor(slotIndex / SLOTS_PER_TAB);
+        
+        if (dragData.fromTab === targetTab) {
+          // Same tab - normal swap
+          swapBankItems(dragData.fromSlot, slotIndex);
+        } else {
+          // Cross-tab move - move item to this specific slot
+          moveItemToSpecificSlot(dragData.fromSlot, slotIndex);
+        }
+      } else if (dragData.type === 'inventory-item') {
+        // Deposit item from inventory
+        console.log(`🏦 Depositing item from inventory slot ${dragData.fromSlot} to bank slot ${slotIndex}`);
+        depositItem(dragData.fromSlot);
+      }
+    } catch (error) {
+      console.error('Error handling bank drop:', error);
+    }
+  });
+}
+
+/**
+ * Move an item from one bank slot to a specific slot (cross-tab support)
+ */
+function moveItemToSpecificSlot(fromSlot, toSlot) {
+  console.log(`🔄 Moving item from slot ${fromSlot} to slot ${toSlot}`);
+  
+  const item = playerBank[fromSlot];
+  if (!item) {
+    console.warn('⚠️ No item to move from slot', fromSlot);
+    return;
+  }
+  
+  // If target slot is occupied, swap items
+  if (playerBank[toSlot]) {
+    swapBankItems(fromSlot, toSlot);
+  } else {
+    // Target slot is empty, just move the item
+    playerBank[toSlot] = item;
+    playerBank[fromSlot] = null;
+    
+    console.log(`✅ Moved ${item.id} from slot ${fromSlot} to slot ${toSlot}`);
+    
+    // Refresh display
+    refreshBankDisplay();
+    
+    // Sync with server if online
+    if (window.isUserOnline && window.isUserOnline() && window.getWebSocket) {
+      const websocket = window.getWebSocket();
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        console.log('📤 Sending bank move to server');
+        websocket.send(JSON.stringify({
+          type: 'bank-sync',
+          bankData: playerBank
+        }));
+      }
+    }
+  }
+}
+
+/**
+ * Move an item to the first available slot in a specific tab
+ */
+function moveItemToTab(fromSlot, targetTabIndex) {
+  console.log(`🔄 Moving item from slot ${fromSlot} to tab ${targetTabIndex}`);
+  
+  const item = playerBank[fromSlot];
+  if (!item) {
+    console.warn('⚠️ No item to move from slot', fromSlot);
+    return;
+  }
+  
+  // Find first available slot in target tab
+  const startSlot = targetTabIndex * SLOTS_PER_TAB;
+  const endSlot = startSlot + SLOTS_PER_TAB;
+  
+  let targetSlot = -1;
+  for (let i = startSlot; i < endSlot; i++) {
+    if (!playerBank[i]) {
+      targetSlot = i;
+      break;
+    }
+  }
+  
+  if (targetSlot === -1) {
+    console.warn(`⚠️ No available slots in tab ${targetTabIndex}`);
+    // Show notification if possible
+    if (window.inventoryModule && window.inventoryModule.showNotification) {
+      window.inventoryModule.showNotification(`Tab ${targetTabIndex + 1} is full!`, 'warning');
+    }
+    return;
+  }
+  
+  // Move the item
+  playerBank[targetSlot] = item;
+  playerBank[fromSlot] = null;
+  
+  console.log(`✅ Moved ${item.id} from slot ${fromSlot} to tab ${targetTabIndex} (slot ${targetSlot})`);
+  
+  // Refresh display (but keep current tab selection)
+  refreshBankDisplay();
+  
+  // Sync with server if online
+  if (window.isUserOnline && window.isUserOnline() && window.getWebSocket) {
+    const websocket = window.getWebSocket();
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      console.log('📤 Sending bank move to server');
+      websocket.send(JSON.stringify({
+        type: 'bank-sync',
+        bankData: playerBank
+      }));
+    }
+  }
+}
+
+/**
+ * Swap two bank items for customization
+ */
+function swapBankItems(fromSlot, toSlot) {
+  console.log(`🔄 Swapping bank items: slot ${fromSlot} <-> slot ${toSlot}`);
+  
+  // Perform local swap
+  const tempItem = playerBank[fromSlot];
+  playerBank[fromSlot] = playerBank[toSlot];
+  playerBank[toSlot] = tempItem;
+  
+  // Refresh display
+  refreshBankDisplay();
+  
+  // If online, sync with server
+  if (window.isUserOnline && window.isUserOnline() && window.getWebSocket) {
+    const websocket = window.getWebSocket();
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      console.log('📤 Sending bank swap to server');
+      websocket.send(JSON.stringify({
+        type: 'bank-sync',
+        bankData: playerBank
+      }));
+    }
+  }
+  
+  console.log(`✅ Bank items swapped successfully`);
+}
+
+/**
+ * Deposit an item from inventory to bank
+ */
+function depositItem(inventorySlot, quantity = 1) {
+  if (!window.inventoryModule) {
+    console.error('❌ Inventory module not available for deposit');
+    return;
+  }
+  
+  const playerInventory = window.inventoryModule.getPlayerInventory();
+  const item = playerInventory[inventorySlot];
+  
+  if (!item) {
+    console.log('⚠️ No item to deposit in slot', inventorySlot);
+    return;
+  }
+  
+  // Create item for deposit - remove noted attribute if present (OSRS behavior)
+  const depositItem = { ...item };
+  depositItem.quantity = Math.min(quantity, item.quantity || 1);
+  
+  // Remove noted attribute when depositing (noted items become regular items in bank)
+  if (window.inventoryModuleFunctions && window.inventoryModuleFunctions.isItemNoted && window.inventoryModuleFunctions.isItemNoted(depositItem)) {
+    delete depositItem.noted;
+    console.log(`🏦 Removing noted attribute from deposited item (OSRS behavior)`);
+  }
+  
+  console.log(`🏦 Depositing ${depositItem.id} x${depositItem.quantity || 1} from inventory slot ${inventorySlot}`);
+  
+  // If online, send deposit request to server
+  if (window.isUserOnline && window.isUserOnline() && window.getWebSocket) {
+    const websocket = window.getWebSocket();
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      console.log('📤 Sending deposit request to server');
+      websocket.send(JSON.stringify({
+        type: 'bank-deposit-request',
+        inventorySlot: inventorySlot,
+        item: { ...depositItem },
+        quantity: depositItem.quantity
+      }));
+      return;
+    } else {
+      console.warn('⚠️ WebSocket not available for deposit request');
+    }
+  }
+  
+  // Offline mode - handle locally
+  processDepositLocally(inventorySlot, depositItem);
+}
+
+/**
+ * Withdraw an item from bank to inventory
+ */
+function withdrawItem(bankSlot, quantity = 1) {
+  const item = playerBank[bankSlot];
+  
+  if (!item) {
+    console.log('⚠️ No item to withdraw in bank slot', bankSlot);
+    return;
+  }
+  
+  // Create the item to withdraw with note mode consideration
+  const withdrawnItem = { ...item };
+  withdrawnItem.quantity = Math.min(quantity, item.quantity || 1);
+  
+  // Apply note mode if enabled and item can be noted
+  if (bankInterface.noteMode && window.inventoryModule) {
+    const itemDef = window.inventoryModule.getItemDefinition(item.id);
+    // Items can be noted if they are NOT stackable (OSRS logic)
+    const canBeNoted = itemDef && !itemDef.stackable;
+    
+    if (canBeNoted) {
+      // If withdrawing in note mode, make sure the item is noted
+      if (!window.inventoryModuleFunctions || !window.inventoryModuleFunctions.isItemNoted || !window.inventoryModuleFunctions.isItemNoted(withdrawnItem)) {
+        // Convert to noted version
+        withdrawnItem.noted = true;
+        console.log(`🏦 Converting item to noted version due to note mode`);
+      }
+    } else {
+      console.log(`🏦 Item ${item.id} is stackable and cannot be noted`);
+      // Show notification that stackable items can't be noted
+      if (window.inventoryModule && window.inventoryModule.showNotification) {
+        window.inventoryModule.showNotification('Stackable items cannot be withdrawn as notes', 'warning');
+      }
+    }
+  } else {
+    // Regular withdrawal mode - if item is noted in bank but note mode is off, unnote it
+    if (window.inventoryModuleFunctions && window.inventoryModuleFunctions.isItemNoted && window.inventoryModuleFunctions.isItemNoted(withdrawnItem)) {
+      delete withdrawnItem.noted;
+      console.log(`🏦 Converting noted item to regular version due to regular mode`);
+    }
+  }
+  
+  console.log(`🏦 Withdrawing ${withdrawnItem.id} x${withdrawnItem.quantity || 1} from bank slot ${bankSlot}${bankInterface.noteMode ? ' (note mode)' : ''}`);
+  
+  // If online, send withdraw request to server
+  if (window.isUserOnline && window.isUserOnline() && window.getWebSocket) {
+    const websocket = window.getWebSocket();
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      console.log('📤 Sending withdraw request to server');
+      websocket.send(JSON.stringify({
+        type: 'bank-withdraw-request',
+        bankSlot: bankSlot,
+        item: { ...withdrawnItem },
+        quantity: withdrawnItem.quantity,
+        noteMode: bankInterface.noteMode
+      }));
+      return;
+    } else {
+      console.warn('⚠️ WebSocket not available for withdraw request');
+    }
+  }
+  
+  // Offline mode - handle locally
+  processWithdrawLocally(bankSlot, withdrawnItem);
+}
+
+/**
+ * Process deposit locally (offline mode)
+ */
+function processDepositLocally(inventorySlot, item) {
+  if (!window.inventoryModule) return;
+  
+  const quantity = item.quantity || 1;
+  
+  // First, try to find existing stack in CURRENT TAB ONLY
+  const { startSlot, endSlot } = getCurrentTabSlotRange();
+  let existingBankSlot = -1;
+  
+  for (let i = startSlot; i < endSlot; i++) {
+    const bankItem = playerBank[i];
+    if (bankItem && bankItem.id === item.id && !bankItem.noted) {
+      existingBankSlot = i;
+      break;
+    }
+  }
+  
+  if (existingBankSlot !== -1) {
+    // Add to existing stack in CURRENT TAB
+    playerBank[existingBankSlot].quantity = (playerBank[existingBankSlot].quantity || 1) + quantity;
+    console.log(`🏦 Added to existing bank stack in current tab: ${playerBank[existingBankSlot].quantity} (slot ${existingBankSlot}, tab ${Math.floor(existingBankSlot / SLOTS_PER_TAB)})`);
+  } else {
+    // No existing stack in current tab - try to find empty slot in current tab first, then any tab
+    let emptyBankSlot = -1;
+    
+    // First, check current tab for empty slots
+    for (let i = startSlot; i < endSlot; i++) {
+      if (!playerBank[i]) {
+        emptyBankSlot = i;
+        break;
+      }
+    }
+    
+    // If no space in current tab, find any empty slot in other tabs
+    if (emptyBankSlot === -1) {
+      emptyBankSlot = playerBank.findIndex(slot => !slot);
+    }
+    
+    if (emptyBankSlot !== -1) {
+      playerBank[emptyBankSlot] = { ...item };
+      console.log(`🏦 Deposited to new bank slot ${emptyBankSlot} (tab ${Math.floor(emptyBankSlot / SLOTS_PER_TAB)})`);
+    } else {
+      console.warn('⚠️ Bank is full!');
+      if (window.inventoryModule.showNotification) {
+        window.inventoryModule.showNotification('Bank is full!', 'error');
+      }
+      return;
+    }
+  }
+  
+  // Remove from inventory (handle partial quantities)
+  const playerInventory = window.inventoryModule.getPlayerInventory();
+  const inventoryItem = playerInventory[inventorySlot];
+  
+  if ((inventoryItem.quantity || 1) <= quantity) {
+    window.inventoryModule.removeItemFromInventorySlot(inventorySlot);
+  } else {
+    inventoryItem.quantity -= quantity;
+    window.inventoryModule.updateInventoryDisplay();
+  }
+  
+  // Refresh displays
+  refreshBankDisplay();
+  refreshInventorySection();
+  
+  // Show success message
+  const itemDef = window.inventoryModule.getItemDefinition(item.id);
+  const itemName = itemDef ? itemDef.name : item.id;
+  if (window.inventoryModule.showNotification) {
+    window.inventoryModule.showNotification(`Deposited ${itemName} x${quantity}`, 'success');
+  }
+}
+
+/**
+ * Process withdraw locally (offline mode)
+ */
+function processWithdrawLocally(bankSlot, item) {
+  if (!window.inventoryModule) return;
+  
+  const quantity = item.quantity || 1;
+  const itemDef = window.inventoryModule.getItemDefinition(item.id);
+  const isStackable = itemDef && itemDef.stackable;
+  
+  // Check if inventory has space
+  const playerInventory = window.inventoryModule.getPlayerInventory();
+  
+  // Noted items are ALWAYS stackable, regardless of base item stackability
+  if (isStackable || item.noted) {
+    // Stackable or noted items can stack
+    const existingSlot = playerInventory.findIndex(invItem => 
+      invItem && 
+      invItem.id === item.id && 
+      (!!invItem.noted) === (!!item.noted)
+    );
+    
+    if (existingSlot !== -1) {
+      // Add to existing stack
+      playerInventory[existingSlot].quantity = (playerInventory[existingSlot].quantity || 1) + quantity;
+      console.log(`🏦 Added ${quantity} to existing stack, new total: ${playerInventory[existingSlot].quantity}`);
+    } else {
+      // Find empty slot for new stack
+      const emptySlot = playerInventory.findIndex(slot => !slot);
+      if (emptySlot === -1) {
+        console.warn('⚠️ Inventory is full!');
+        if (window.inventoryModule.showNotification) {
+          window.inventoryModule.showNotification('Inventory is full!', 'error');
+        }
+        return;
+      }
+      playerInventory[emptySlot] = {
+        id: item.id,
+        quantity: quantity,
+        ...(item.noted ? { noted: true } : {})
+      };
+      console.log(`🏦 Created new stack of ${quantity} items`);
+    }
+  } else {
+    // Non-stackable items need individual slots
+    const emptySlots = [];
+    for (let i = 0; i < playerInventory.length && emptySlots.length < quantity; i++) {
+      if (!playerInventory[i]) {
+        emptySlots.push(i);
+      }
+    }
+    
+    let actualQuantity = quantity;
+    if (emptySlots.length < quantity) {
+      console.warn(`⚠️ Can only withdraw ${emptySlots.length} items due to limited space!`);
+      actualQuantity = emptySlots.length;
+      if (actualQuantity === 0) {
+        if (window.inventoryModule.showNotification) {
+          window.inventoryModule.showNotification('No inventory space!', 'error');
+        }
+        return;
+      }
+    }
+    
+    // Place items in empty slots
+    for (let i = 0; i < actualQuantity; i++) {
+      playerInventory[emptySlots[i]] = {
+        id: item.id,
+        quantity: 1
+      };
+      console.log(`🏦 Placed 1 item in slot ${emptySlots[i]}, ${actualQuantity - i - 1} remaining`);
+    }
+    
+    // If we couldn't withdraw the full amount, update the bank accordingly
+    if (actualQuantity < quantity) {
+      const bankItem = playerBank[bankSlot];
+      const remainingInBank = (bankItem.quantity || 1) - actualQuantity;
+      if (remainingInBank <= 0) {
+        playerBank[bankSlot] = null;
+      } else {
+        bankItem.quantity = remainingInBank;
+      }
+      
+      // Update the original item quantity for notification
+      item.quantity = actualQuantity;
+    } else {
+      // Remove full amount from bank
+      const bankItem = playerBank[bankSlot];
+      if ((bankItem.quantity || 1) <= quantity) {
+        playerBank[bankSlot] = null;
+      } else {
+        bankItem.quantity -= quantity;
+      }
+    }
+  }
+  
+  // For stackable/noted items, remove from bank normally
+  if (isStackable || item.noted) {
+    const bankItem = playerBank[bankSlot];
+    if ((bankItem.quantity || 1) <= quantity) {
+      playerBank[bankSlot] = null;
+    } else {
+      bankItem.quantity -= quantity;
+    }
+  }
+  
+  // Update displays
+  window.inventoryModule.updateInventoryDisplay();
+  refreshBankDisplay();
+  refreshInventorySection();
+  
+  // Show success message
+  const itemName = itemDef ? itemDef.name : item.id;
+  const actualWithdrawn = item.quantity;
+  if (window.inventoryModule.showNotification) {
+    window.inventoryModule.showNotification(`Withdrew ${itemName} x${actualWithdrawn}`, 'success');
+  }
+}
+
+/**
+ * Refresh bank display to show current data
+ */
+function refreshBankDisplay() {
+  if (!bankInterface.open) return;
+  
+  console.log(`🏦 Refreshing bank display for tab ${bankInterface.currentTab}`);
+  
+  const bankGrid = document.getElementById('bank-grid');
+  if (!bankGrid) return;
+  
+  // Clear and recreate bank grid for current tab
+  bankGrid.innerHTML = '';
+  
+  const { startSlot, endSlot } = getCurrentTabSlotRange();
+  
+  for (let tabSlot = 0; tabSlot < SLOTS_PER_TAB; tabSlot++) {
+    const globalSlot = tabSlotToGlobalSlot(tabSlot);
+    const slot = document.createElement('div');
+    slot.className = 'bank-slot';
+    slot.dataset.tabSlot = tabSlot;
+    slot.dataset.globalSlot = globalSlot;
+    slot.style.cssText = `
+      width: 40px;
+      height: 40px;
+      border: 2px solid #34495e;
+      border-radius: 4px;
+      background: #2c3e50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    `;
+    
+    const item = playerBank[globalSlot];
+    if (item) {
+      slot.classList.add('occupied');
+      
+      // Item icon
+      const itemIcon = document.createElement('div');
+      itemIcon.className = 'inventory-item-icon';
+      itemIcon.textContent = getItemDisplayIcon(item);
+      itemIcon.style.cssText = `
+        font-size: 18px;
+        position: relative;
+        z-index: 1;
+      `;
+      
+      // Add noted indicator if item is noted
+      if (item.noted && window.inventoryModuleFunctions) {
+        if (window.inventoryModuleFunctions.isItemNoted(item)) {
+          const notedIndicator = document.createElement('div');
+          notedIndicator.className = 'noted-indicator';
+          notedIndicator.textContent = '📝';
+          notedIndicator.style.cssText = `
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            font-size: 10px;
+            z-index: 3;
+            color: #f39c12;
+          `;
+          slot.appendChild(notedIndicator);
+        }
+      }
+      
+      // Quantity
+      if (item.quantity && item.quantity > 1) {
+        const quantityLabel = document.createElement('div');
+        quantityLabel.className = 'inventory-item-quantity';
+        quantityLabel.textContent = item.quantity;
+        quantityLabel.style.cssText = `
+          position: absolute;
+          bottom: 1px;
+          right: 2px;
+          background: rgba(0, 0, 0, 0.7);
+          color: #f1c40f;
+          font-size: 10px;
+          font-weight: bold;
+          padding: 1px 3px;
+          border-radius: 2px;
+          line-height: 1;
+          z-index: 2;
+        `;
+        slot.appendChild(quantityLabel);
+      }
+      
+      slot.appendChild(itemIcon);
+      slot.style.borderColor = '#3498db';
+      slot.style.background = '#34495e';
+      
+      // Add withdraw functionality
+      slot.addEventListener('click', () => {
+        withdrawItem(globalSlot);
+      });
+      
+      // Add right-click context menu for withdraw options
+      slot.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showBankWithdrawMenu(e, globalSlot);
+      });
+      
+      // Add drag and drop functionality
+      addBankSlotDragAndDrop(slot, globalSlot);
+      
+      slot.addEventListener('mouseenter', () => {
+        slot.style.background = '#e74c3c';
+        slot.style.borderColor = '#c0392b';
+      });
+      
+      slot.addEventListener('mouseleave', () => {
+        slot.style.background = '#34495e';
+        slot.style.borderColor = '#3498db';
+      });
+    } else {
+      slot.classList.remove('occupied');
+      slot.style.background = '#2c3e50';
+      slot.style.borderColor = '#34495e';
+      
+      // Allow dropping items into empty slots
+      slot.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        slot.style.background = '#3498db';
+        slot.style.borderColor = '#2980b9';
+      });
+      
+      slot.addEventListener('dragleave', () => {
+        slot.style.background = '#2c3e50';
+        slot.style.borderColor = '#34495e';
+      });
+      
+      slot.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const draggedType = e.dataTransfer.getData('text/plain');
+        
+        if (draggedType.startsWith('bank:')) {
+          // Bank item being moved
+          const fromGlobalSlot = parseInt(draggedType.split(':')[1]);
+          const toGlobalSlot = globalSlot;
+          swapBankItems(fromGlobalSlot, toGlobalSlot);
+        } else if (draggedType.startsWith('inventory:')) {
+          // Inventory item being deposited
+          const inventorySlot = parseInt(draggedType.split(':')[1]);
+          depositItem(inventorySlot);
+        }
+        
+        slot.style.background = '#2c3e50';
+        slot.style.borderColor = '#34495e';
+      });
+    }
+    
+    bankGrid.appendChild(slot);
+  }
+  
+  console.log(`🏦 Bank display refreshed - showing ${SLOTS_PER_TAB} slots for tab ${bankInterface.currentTab}`);
+}
+
+/**
+ * Sync bank data from server
+ */
+function syncBankFromServer(serverBankData, serverTabData = null) {
+  if (!Array.isArray(serverBankData)) {
+    console.warn('⚠️ Invalid server bank data received');
+    return;
+  }
+  
+  console.log(`🏦 Syncing bank data from server: ${serverBankData.filter(item => item).length} items`);
+  
+  // Update bank data
+  playerBank = [...serverBankData];
+  
+  // Ensure bank has enough slots
+  while (playerBank.length < TOTAL_BANK_SIZE) {
+    playerBank.push(null);
+  }
+  
+  // Update tab data if provided
+  if (serverTabData && Array.isArray(serverTabData)) {
+    console.log('🏦 Syncing tab data from server');
+    serverTabData.forEach((tabData, index) => {
+      if (index < MAX_TABS && playerBankTabs[index]) {
+        if (tabData.customIcon) {
+          playerBankTabs[index].customIcon = tabData.customIcon;
+        }
+        if (tabData.name) {
+          playerBankTabs[index].name = tabData.name;
+        }
+      }
+    });
+  }
+  
+  // Refresh display if bank is open
+  if (bankInterface.open) {
+    refreshBankDisplay();
+    
+    // Update tab icons in UI
+    playerBankTabs.forEach((tab, index) => {
+      const tabElement = document.querySelector(`[data-tab-index="${index}"]`);
+      if (tabElement) {
+        const iconElement = tabElement.querySelector('.tab-icon');
+        if (iconElement) {
+          iconElement.textContent = tab.customIcon || tab.icon;
+        }
+      }
+    });
+  }
+  
+  console.log('✅ Bank sync completed');
+}
+
+/**
+ * Get current bank data
+ */
+function getBankData() {
+  return playerBank;
+}
+
+/**
+ * Check if bank is open
+ */
+function isBankOpen() {
+  return bankInterface.open;
+}
+
+/**
+ * Handle server responses for bank operations
+ */
+function handleBankMessage(data) {
+  switch (data.type) {
+    case 'bank-open-confirmed':
+      handleBankOpenConfirmed(data);
+      break;
+    case 'bank-open-denied':
+      handleBankOpenDenied(data);
+      break;
+    case 'bank-deposit-confirmed':
+      handleBankDepositConfirmed(data);
+      break;
+    case 'bank-deposit-denied':
+      handleBankDepositDenied(data);
+      break;
+    case 'bank-withdraw-confirmed':
+      handleBankWithdrawConfirmed(data);
+      break;
+    case 'bank-withdraw-denied':
+      handleBankWithdrawDenied(data);
+      break;
+  }
+}
+
+/**
+ * Handle bank open confirmation from server
+ */
+function handleBankOpenConfirmed(data) {
+  console.log('🏦 Bank open confirmed by server');
+  
+  if (data.bankData) {
+    syncBankFromServer(data.bankData, data.tabData);
+  }
+  
+  displayBankInterface();
+  
+  console.log(`✅ Bank opened with ${data.bankData ? data.bankData.filter(item => item).length : 0} items`);
+}
+
+/**
+ * Handle bank open denied from server
+ */
+function handleBankOpenDenied(data) {
+  console.warn('⚠️ Bank open denied by server:', data.reason);
+  
+  if (window.inventoryModule && window.inventoryModule.showNotification) {
+    window.inventoryModule.showNotification(`Cannot open bank: ${data.reason}`, 'error');
+  }
+}
+
+/**
+ * Handle deposit confirmed from server
+ */
+function handleBankDepositConfirmed(data) {
+  console.log('✅ Deposit confirmed by server');
+  
+  // Update local bank data
+  syncBankFromServer(data.updatedBank);
+  
+  // Update inventory module if available
+  if (window.inventoryModule && window.inventoryModule.syncInventoryFromServer) {
+    window.inventoryModule.syncInventoryFromServer(data.updatedInventory);
+  }
+  
+  // Refresh displays
+  if (bankInterface.open) {
+    refreshBankDisplay();
+    refreshInventorySection();
+  }
+  
+  // Show success notification
+  const itemDef = window.inventoryModule ? window.inventoryModule.getItemDefinition(data.item.id) : null;
+  const itemName = itemDef ? itemDef.name : data.item.id;
+  if (window.inventoryModule && window.inventoryModule.showNotification) {
+    window.inventoryModule.showNotification(`Deposited ${itemName} x${data.item.quantity || 1}`, 'success');
+  }
+}
+
+/**
+ * Handle deposit denied from server
+ */
+function handleBankDepositDenied(data) {
+  console.warn('⚠️ Deposit denied by server:', data.reason);
+  
+  if (window.inventoryModule && window.inventoryModule.showNotification) {
+    window.inventoryModule.showNotification(`Cannot deposit: ${data.reason}`, 'error');
+  }
+}
+
+/**
+ * Handle withdraw confirmed from server
+ */
+function handleBankWithdrawConfirmed(data) {
+  console.log('✅ Withdraw confirmed by server');
+  
+  // Update local bank data
+  syncBankFromServer(data.updatedBank);
+  
+  // Update inventory module if available
+  if (window.inventoryModule && window.inventoryModule.syncInventoryFromServer) {
+    window.inventoryModule.syncInventoryFromServer(data.updatedInventory);
+  }
+  
+  // Refresh displays
+  if (bankInterface.open) {
+    refreshBankDisplay();
+    refreshInventorySection();
+  }
+  
+  // Show success notification
+  const itemDef = window.inventoryModule ? window.inventoryModule.getItemDefinition(data.item.id) : null;
+  const itemName = itemDef ? itemDef.name : data.item.id;
+  if (window.inventoryModule && window.inventoryModule.showNotification) {
+    window.inventoryModule.showNotification(`Withdrew ${itemName} x${data.item.quantity || 1}`, 'success');
+  }
+}
+
+/**
+ * Handle withdraw denied from server
+ */
+function handleBankWithdrawDenied(data) {
+  console.warn('⚠️ Withdraw denied by server:', data.reason);
+  
+  if (window.inventoryModule && window.inventoryModule.showNotification) {
+    window.inventoryModule.showNotification(`Cannot withdraw: ${data.reason}`, 'error');
+  }
+}
+
+/**
+ * Show bank withdraw context menu
+ */
+function showBankWithdrawMenu(event, bankSlot) {
+  const item = playerBank[bankSlot];
+  if (!item) return;
+  
+  // Hide any existing context menus
+  hideBankContextMenus();
+  
+  const itemDef = window.inventoryModule ? window.inventoryModule.getItemDefinition(item.id) : null;
+  const itemName = itemDef ? itemDef.name : item.id;
+  const quantity = item.quantity || 1;
+  
+  const menu = document.createElement('div');
+  menu.className = 'bank-context-menu';
+  menu.style.cssText = `
+    position: fixed;
+    background: #2c3e50;
+    border: 1px solid #34495e;
+    border-radius: 4px;
+    padding: 4px 0;
+    z-index: 2000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    min-width: 120px;
+  `;
+  
+  const options = [
+    { text: 'Withdraw 1', action: () => withdrawItem(bankSlot, 1) },
+    ...(quantity >= 5 ? [{ text: 'Withdraw 5', action: () => withdrawItem(bankSlot, 5) }] : []),
+    ...(quantity >= 10 ? [{ text: 'Withdraw 10', action: () => withdrawItem(bankSlot, 10) }] : []),
+    ...(quantity >= 50 ? [{ text: 'Withdraw 50', action: () => withdrawItem(bankSlot, 50) }] : []),
+    ...(quantity > 1 ? [{ text: `Withdraw All (${quantity})`, action: () => withdrawItem(bankSlot, quantity) }] : []),
+    { text: 'Withdraw X', action: () => promptWithdrawAmount(bankSlot, quantity) }
+  ];
+  
+  options.forEach((option, index) => {
+    const menuItem = document.createElement('div');
+    menuItem.className = 'bank-context-menu-item';
+    menuItem.textContent = option.text;
+    menuItem.style.cssText = `
+      padding: 6px 12px;
+      cursor: pointer;
+      color: #ecf0f1;
+      transition: background-color 0.2s;
+    `;
+    
+    menuItem.addEventListener('mouseenter', () => {
+      menuItem.style.backgroundColor = '#3498db';
+    });
+    
+    menuItem.addEventListener('mouseleave', () => {
+      menuItem.style.backgroundColor = 'transparent';
+    });
+    
+    menuItem.addEventListener('click', () => {
+      hideBankContextMenus();
+      option.action();
+    });
+    
+    menu.appendChild(menuItem);
+  });
+  
+  // Position menu near mouse
+  const x = Math.min(event.clientX, window.innerWidth - 150);
+  const y = Math.min(event.clientY, window.innerHeight - (options.length * 30));
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  
+  document.body.appendChild(menu);
+  
+  // Store reference for cleanup
+  menu.id = 'bank-withdraw-menu';
+  
+  // Hide menu when clicking elsewhere
+  setTimeout(() => {
+    document.addEventListener('click', hideBankContextMenus, { once: true });
+  }, 10);
+}
+
+/**
+ * Show bank deposit context menu
+ */
+function showBankDepositMenu(event, inventorySlot) {
+  if (!window.inventoryModule) return;
+  
+  const playerInventory = window.inventoryModule.getPlayerInventory();
+  const item = playerInventory[inventorySlot];
+  if (!item) return;
+  
+  // Hide any existing context menus
+  hideBankContextMenus();
+  
+  const itemDef = window.inventoryModule.getItemDefinition(item.id);
+  const itemName = itemDef ? itemDef.name : item.id;
+  const quantity = item.quantity || 1;
+  
+  const menu = document.createElement('div');
+  menu.className = 'bank-context-menu';
+  menu.style.cssText = `
+    position: fixed;
+    background: #2c3e50;
+    border: 1px solid #34495e;
+    border-radius: 4px;
+    padding: 4px 0;
+    z-index: 2000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    min-width: 120px;
+  `;
+  
+  const options = [
+    { text: 'Deposit 1', action: () => depositItem(inventorySlot, 1) },
+    ...(quantity >= 5 ? [{ text: 'Deposit 5', action: () => depositItem(inventorySlot, 5) }] : []),
+    ...(quantity >= 10 ? [{ text: 'Deposit 10', action: () => depositItem(inventorySlot, 10) }] : []),
+    ...(quantity >= 50 ? [{ text: 'Deposit 50', action: () => depositItem(inventorySlot, 50) }] : []),
+    ...(quantity > 1 ? [{ text: `Deposit All (${quantity})`, action: () => depositItem(inventorySlot, quantity) }] : []),
+    { text: 'Deposit X', action: () => promptDepositAmount(inventorySlot, quantity) }
+  ];
+  
+  options.forEach((option, index) => {
+    const menuItem = document.createElement('div');
+    menuItem.className = 'bank-context-menu-item';
+    menuItem.textContent = option.text;
+    menuItem.style.cssText = `
+      padding: 6px 12px;
+      cursor: pointer;
+      color: #ecf0f1;
+      transition: background-color 0.2s;
+    `;
+    
+    menuItem.addEventListener('mouseenter', () => {
+      menuItem.style.backgroundColor = '#3498db';
+    });
+    
+    menuItem.addEventListener('mouseleave', () => {
+      menuItem.style.backgroundColor = 'transparent';
+    });
+    
+    menuItem.addEventListener('click', () => {
+      hideBankContextMenus();
+      option.action();
+    });
+    
+    menu.appendChild(menuItem);
+  });
+  
+  // Position menu near mouse
+  const x = Math.min(event.clientX, window.innerWidth - 150);
+  const y = Math.min(event.clientY, window.innerHeight - (options.length * 30));
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  
+  document.body.appendChild(menu);
+  
+  // Store reference for cleanup
+  menu.id = 'bank-deposit-menu';
+  
+  // Hide menu when clicking elsewhere
+  setTimeout(() => {
+    document.addEventListener('click', hideBankContextMenus, { once: true });
+  }, 10);
+}
+
+/**
+ * Prompt for custom withdraw amount
+ */
+function promptWithdrawAmount(bankSlot, maxAmount) {
+  const amount = prompt(`How many would you like to withdraw? (Max: ${maxAmount})`);
+  if (amount !== null) {
+    const quantity = parseInt(amount);
+    if (!isNaN(quantity) && quantity > 0 && quantity <= maxAmount) {
+      withdrawItem(bankSlot, quantity);
+    } else {
+      if (window.inventoryModule && window.inventoryModule.showNotification) {
+        window.inventoryModule.showNotification('Invalid amount entered', 'error');
+      }
+    }
+  }
+}
+
+/**
+ * Prompt for custom deposit amount
+ */
+function promptDepositAmount(inventorySlot, maxAmount) {
+  const amount = prompt(`How many would you like to deposit? (Max: ${maxAmount})`);
+  if (amount !== null) {
+    const quantity = parseInt(amount);
+    if (!isNaN(quantity) && quantity > 0 && quantity <= maxAmount) {
+      depositItem(inventorySlot, quantity);
+    } else {
+      if (window.inventoryModule && window.inventoryModule.showNotification) {
+        window.inventoryModule.showNotification('Invalid amount entered', 'error');
+      }
+    }
+  }
+}
+
+/**
+ * Hide all bank context menus
+ */
+function hideBankContextMenus() {
+  const withdrawMenu = document.getElementById('bank-withdraw-menu');
+  const depositMenu = document.getElementById('bank-deposit-menu');
+  
+  if (withdrawMenu) withdrawMenu.remove();
+  if (depositMenu) depositMenu.remove();
+}
+
+/**
+ * Switch to a specific bank tab
+ */
+function switchToTab(tabIndex) {
+  if (tabIndex < 0 || tabIndex >= MAX_TABS || tabIndex === bankInterface.currentTab) return;
+  
+  console.log(`🏦 Switching to tab ${tabIndex}`);
+  bankInterface.currentTab = tabIndex;
+  
+  // Update tab visual states
+  const tabs = document.querySelectorAll('.bank-tab');
+  tabs.forEach((tab, index) => {
+    if (index === tabIndex) {
+      tab.classList.add('active');
+      tab.style.background = '#3498db';
+    } else {
+      tab.classList.remove('active');
+      tab.style.background = '#2c3e50';
+    }
+  });
+  
+  // Refresh bank display to show current tab
+  refreshBankDisplay();
+}
+
+/**
+ * Show icon selector for customizing tab icons
+ */
+function showTabIconSelector(tabIndex) {
+  console.log(`🏦 Opening icon selector for tab ${tabIndex}`);
+  
+  // Available icons for tabs
+  const availableIcons = [
+    '📦', '📁', '⚔️', '🛡️', '💎', '🔨', '🪓', '⛏️', 
+    '🏹', '🗡️', '🔥', '💧', '🌪️', '⚡', '🌿', '🪨',
+    '💰', '💍', '👑', '🎯', '🧪', '📚', '🗝️', '🏺',
+    '🍎', '🍖', '🐟', '🥖', '🧙', '🏰', '⭐', '🔮'
+  ];
+  
+  // Create icon selector overlay
+  const selectorOverlay = document.createElement('div');
+  selectorOverlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+  `;
+  
+  const selectorWindow = document.createElement('div');
+  selectorWindow.style.cssText = `
+    background: #2c3e50;
+    border: 2px solid #34495e;
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 400px;
+    color: white;
+    text-align: center;
+  `;
+  
+  const title = document.createElement('h3');
+  title.textContent = `Choose Icon for Tab ${tabIndex + 1}`;
+  title.style.cssText = `
+    margin: 0 0 15px 0;
+    color: #ecf0f1;
+  `;
+  
+  const iconGrid = document.createElement('div');
+  iconGrid.style.cssText = `
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+    margin-bottom: 15px;
+  `;
+  
+  availableIcons.forEach(icon => {
+    const iconButton = document.createElement('button');
+    iconButton.textContent = icon;
+    iconButton.style.cssText = `
+      background: #34495e;
+      border: 1px solid #2c3e50;
+      border-radius: 4px;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      font-size: 20px;
+      transition: all 0.2s;
+    `;
+    
+    iconButton.addEventListener('mouseenter', () => {
+      iconButton.style.background = '#3498db';
+    });
+    
+    iconButton.addEventListener('mouseleave', () => {
+      iconButton.style.background = '#34495e';
+    });
+    
+    iconButton.addEventListener('click', () => {
+      setTabIcon(tabIndex, icon);
+      selectorOverlay.remove();
+    });
+    
+    iconGrid.appendChild(iconButton);
+  });
+  
+  const cancelButton = document.createElement('button');
+  cancelButton.textContent = 'Cancel';
+  cancelButton.style.cssText = `
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+  `;
+  
+  cancelButton.addEventListener('click', () => {
+    selectorOverlay.remove();
+  });
+  
+  selectorWindow.appendChild(title);
+  selectorWindow.appendChild(iconGrid);
+  selectorWindow.appendChild(cancelButton);
+  selectorOverlay.appendChild(selectorWindow);
+  
+  // Close on overlay click
+  selectorOverlay.addEventListener('click', (e) => {
+    if (e.target === selectorOverlay) {
+      selectorOverlay.remove();
+    }
+  });
+  
+  document.body.appendChild(selectorOverlay);
+}
+
+/**
+ * Set custom icon for a tab
+ */
+function setTabIcon(tabIndex, icon) {
+  if (tabIndex < 0 || tabIndex >= MAX_TABS) return;
+  
+  console.log(`🏦 Setting tab ${tabIndex} icon to ${icon}`);
+  playerBankTabs[tabIndex].customIcon = icon;
+  
+  // Update the visual tab icon
+  const tabElement = document.querySelector(`[data-tab-index="${tabIndex}"]`);
+  if (tabElement) {
+    const iconElement = tabElement.querySelector('.tab-icon');
+    if (iconElement) {
+      iconElement.textContent = icon;
+    }
+  }
+  
+  // Sync with server if online
+  if (window.isUserOnline && window.isUserOnline() && window.getWebSocket) {
+    const websocket = window.getWebSocket();
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      websocket.send(JSON.stringify({
+        type: 'bank-tab-icon-update',
+        tabIndex: tabIndex,
+        icon: icon,
+        timestamp: Date.now()
+      }));
+    }
+  }
+}
+
+/**
+ * Get current tab's slot range
+ */
+function getCurrentTabSlotRange() {
+  const startSlot = bankInterface.currentTab * SLOTS_PER_TAB;
+  const endSlot = startSlot + SLOTS_PER_TAB;
+  return { startSlot, endSlot };
+}
+
+/**
+ * Convert global bank slot to tab-relative slot
+ */
+function globalSlotToTabSlot(globalSlot) {
+  return globalSlot % SLOTS_PER_TAB;
+}
+
+/**
+ * Convert tab-relative slot to global bank slot
+ */
+function tabSlotToGlobalSlot(tabSlot, tabIndex = bankInterface.currentTab) {
+  return (tabIndex * SLOTS_PER_TAB) + tabSlot;
+}
+
+/**
+ * Refresh the inventory section in the bank interface
+ */
+function refreshInventorySection() {
+  if (!bankInterface.open) return;
+  
+  console.log('🎒 Refreshing inventory section in bank');
+  
+  const inventoryGrid = document.querySelector('.bank-inventory-grid');
+  if (!inventoryGrid) return;
+  
+  // Recreate the inventory section
+  const inventorySection = document.querySelector('.inventory-section');
+  if (inventorySection) {
+    const newInventorySection = createInventorySection();
+    inventorySection.replaceWith(newInventorySection);
+  }
+}
+
+// Export functions for access from other modules
+if (typeof window !== 'undefined') {
+  window.bankModule = {
+    openBank,
+    closeBank,
+    isBankOpen,
+    getBankData,
+    switchToTab,
+    setTabIcon,
+    getCurrentTabSlotRange,
+    globalSlotToTabSlot,
+    tabSlotToGlobalSlot
+  };
+  
+  // Also export individual functions
+  window.bankModuleFunctions = {
+    depositItem,
+    withdrawItem,
+    refreshBankDisplay,
+    syncBankFromServer,
+    handleBankMessage,
+    displayBankInterface,
+    switchToTab,
+    setTabIcon,
+    showTabIconSelector,
+    getCurrentTabSlotRange,
+    globalSlotToTabSlot,
+    tabSlotToGlobalSlot
+  };
+}
+
+// ES6 module exports for main.js
+export {
+  openBank,
+  closeBank,
+  isBankOpen,
+  getBankData,
+  depositItem,
+  withdrawItem,
+  refreshBankDisplay,
+  syncBankFromServer,
+  handleBankMessage,
+  displayBankInterface,
+  switchToTab,
+  setTabIcon,
+  showTabIconSelector,
+  getCurrentTabSlotRange,
+  globalSlotToTabSlot,
+  tabSlotToGlobalSlot
+}; 

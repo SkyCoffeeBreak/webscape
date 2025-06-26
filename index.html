@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebscapeRPG - Skill-Based RPG Game</title>
+  <!-- Google Noto Color Emoji Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/game.css">
+  <script>
+    let authRetries = 0;
+    function checkAuthentication() {
+      console.log('🔍 Starting authentication check...');
+      fetch('/api/check-auth', { credentials: 'include' })
+        .then(response => response.json())
+        .then(data => {
+          console.log('🔍 Auth check response:', data);
+          if (!data.isAuthenticated) {
+            if (authRetries < 2) {
+              // Give the session cookie a bit longer to propagate
+              authRetries++;
+              console.log(`⏳ Auth retry ${authRetries}...`);
+              return setTimeout(checkAuthentication, 750);
+            }
+            console.log('❌ Not authenticated after retries, redirecting to splash');
+            window.location.replace('splash.html');
+            return;
+          }
+          console.log('✅ User authenticated:', data.username || 'unknown');
+          // If authenticated, continue loading the game
+        })
+        .catch(error => {
+          console.error('❌ Auth check failed:', error);
+          if (authRetries < 2) {
+            authRetries++;
+            console.log(`⏳ Auth retry after error ${authRetries}...`);
+            return setTimeout(checkAuthentication, 750);
+          }
+          window.location.replace('splash.html');
+        });
+    }
+    
+    // Delay initial check to give the server time to set the session cookie first
+    setTimeout(checkAuthentication, 1500);
+
+    // Error handler to detect if modules aren't loading
+    window.moduleLoadError = false;
+    window.addEventListener('error', function(event) {
+      if (event.filename && event.filename.includes('/js/modules/') || 
+          event.filename && event.filename.includes('/js/main.js')) {
+        console.error('Module loading error detected:', event.message);
+        window.moduleLoadError = true;
+        
+        // If module loading fails, load the fallback script
+        if (!document.getElementById('fallback-script')) {
+          const fallbackScript = document.createElement('script');
+          fallbackScript.id = 'fallback-script';
+          fallbackScript.src = 'js/fallback.js';
+          document.head.appendChild(fallbackScript);
+        }
+      }
+    }, true);
+    
+    // Also add a timeout to check if the module initialized correctly
+    setTimeout(function() {
+      // If no initialization has occurred yet, load the fallback
+      if (!window.webscapeInitialized && !window.moduleLoadError) {
+        console.warn('Module initialization timeout - loading fallback');
+        if (!document.getElementById('fallback-script')) {
+          const fallbackScript = document.createElement('script');
+          fallbackScript.id = 'fallback-script';
+          fallbackScript.src = 'js/fallback.js';
+          document.head.appendChild(fallbackScript);
+        }
+      }
+    }, 1000);
+  </script>
+</head>
+<body>
+  <div class="game-container">
+    <!-- Character Profile -->
+    <div class="character-profile" id="character-profile">
+      <div class="character-name" id="character-name">Adventurer</div>
+      <div class="character-info">
+        <div class="character-stats">
+          Combat Level: <span id="combat-level" class="character-level">3</span>
+        </div>
+        <div class="character-stats">
+          Total Level: <span id="total-level-header" class="character-level">31</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Game Area (Left) -->
+      <div class="game-area">
+        <div id="game-tab">
+          <!-- Game world will be initialized here -->
+        </div>
+        
+        <!-- Chat Box -->
+        <div class="chat-container">
+          <div class="chat-messages" id="chat-messages">
+            <!-- Chat messages will be populated here -->
+          </div>
+          <div class="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Press Enter to chat..." maxlength="280">
+            <button id="chat-send" class="chat-send-btn">Send</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Info Area (Right) -->
+      <div class="info-area">
+        <!-- Tab Navigation -->
+        <div class="tabs">
+          <div class="tab active" data-tab="skills">📊</div>
+          <div class="tab" data-tab="inventory">💼</div>
+          <div class="tab" data-tab="equipment">⚔️</div>
+          <div class="tab" data-tab="quests">📘</div>
+          <div class="tab" data-tab="prayer">✨</div>
+          <div class="tab" data-tab="magic">☄️</div>
+          <div class="tab" data-tab="alchemy">⚖️</div>
+          <div class="tab" data-tab="pet">🐾</div>
+        </div>
+        
+        <!-- Tab Content -->
+        <div class="tab-content">
+          <!-- Skills Tab -->
+          <div class="tab-pane active" id="skills-tab">
+  <div class="skill-ui">
+
+    
+<!-- Row 1 -->
+<div class="skill" data-skill="attack">
+  <div class="skill-name">Attack</div>
+  <div class="skill-icon">⚔️</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="magic">
+  <div class="skill-name">Magic</div>
+  <div class="skill-icon">🪄</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="ranged">
+  <div class="skill-name">Ranged</div>
+  <div class="skill-icon">🏹</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="blasting">
+  <div class="skill-name">Blasting</div>
+  <div class="skill-icon">💣</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+
+<!-- Row 2 -->
+<div class="skill" data-skill="defence">
+  <div class="skill-name">Defence</div>
+  <div class="skill-icon">🛡️</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="hitpoints">
+  <div class="skill-name">Hitpoints</div>
+  <div class="skill-icon">❤️</div>
+  <div class="skill-level">10</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="prayer">
+  <div class="skill-name">Prayer</div>
+  <div class="skill-icon">✨</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="taming">
+  <div class="skill-name">Taming</div>
+  <div class="skill-icon">🐉</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+
+<!-- Row 3 -->
+<div class="skill" data-skill="mining">
+  <div class="skill-name">Mining</div>
+  <div class="skill-icon">⛏️</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="smithing">
+  <div class="skill-name">Smithing</div>
+  <div class="skill-icon">🔨</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="crafting">
+  <div class="skill-name">Crafting</div>
+  <div class="skill-icon">💍</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="engineering">
+  <div class="skill-name">Engineering</div>
+  <div class="skill-icon">⚙️</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+
+<!-- Row 4 -->
+<div class="skill" data-skill="fishing">
+  <div class="skill-name">Fishing</div>
+  <div class="skill-icon">🎣</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="cooking">
+  <div class="skill-name">Cooking</div>
+  <div class="skill-icon">🍖</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="creation">
+  <div class="skill-name">Creation</div>
+  <div class="skill-icon">🐣</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="confectionery">
+  <div class="skill-name">Confectionery</div>
+  <div class="skill-icon">🍰</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+
+<!-- Row 5 -->
+<div class="skill" data-skill="woodcutting">
+  <div class="skill-name">Woodcutting</div>
+  <div class="skill-icon">🌲</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="fletching">
+  <div class="skill-name">Fletching</div>
+  <div class="skill-icon">🪶</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="scribing">
+  <div class="skill-name">Scribing</div>
+  <div class="skill-icon">📜</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="knowledge">
+  <div class="skill-name">Knowledge</div>
+  <div class="skill-icon">📚</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+
+<!-- Row 6 -->
+<div class="skill" data-skill="harvesting">
+  <div class="skill-name">Harvesting</div>
+  <div class="skill-icon">🍄</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="apothecary">
+  <div class="skill-name">Apothecary</div>
+  <div class="skill-icon">🍇</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="brewing">
+  <div class="skill-name">Brewing</div>
+  <div class="skill-icon">🍺</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="painting">
+  <div class="skill-name">Painting</div>
+  <div class="skill-icon">🎨</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+
+<!-- Row 7 -->
+<div class="skill" data-skill="digging">
+  <div class="skill-name">Digging</div>
+  <div class="skill-icon">🪏</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="pottery">
+  <div class="skill-name">Pottery</div>
+  <div class="skill-icon">🏺</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="masonry">
+  <div class="skill-name">Masonry</div>
+  <div class="skill-icon">🧱</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="bonecarving">
+  <div class="skill-name">Bonecarving</div>
+  <div class="skill-icon">🦴</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+
+<!-- Row 8 -->
+<div class="skill" data-skill="ranching">
+  <div class="skill-name">Ranching</div>
+  <div class="skill-icon">🐄</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="tailoring">
+  <div class="skill-name">Tailoring</div>
+  <div class="skill-icon">🪡</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="candlemaking">
+  <div class="skill-name">Candlemaking</div>
+  <div class="skill-icon">🕯️</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="alchemy">
+  <div class="skill-name">Alchemy</div>
+  <div class="skill-icon">⚖️</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+
+<!-- Row 9 -->
+<!-- Row 9 -->
+<div class="skill" data-skill="thieving">
+  <div class="skill-name">Thieving</div>
+  <div class="skill-icon">🎭</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="delivery">
+  <div class="skill-name">Delivery</div>
+  <div class="skill-icon">✉️</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="diplomacy">
+  <div class="skill-name">Diplomacy</div>
+  <div class="skill-icon">🕊️</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+<div class="skill" data-skill="slayer">
+  <div class="skill-name">Slayer</div>
+  <div class="skill-icon">☠️</div>
+  <div class="skill-level">1</div>
+  <div class="skill-exp-bar"><div class="skill-exp-fill"></div></div>
+</div>
+
+
+    
+    <div class="total" id="totalLevel">Total Level: 31</div>
+  </div>
+  </div>
+
+          <!-- Inventory Tab -->
+          <div class="tab-pane" id="inventory-tab">
+            <h2>Inventory</h2>
+            <p>Your inventory will be displayed here.</p>
+          </div>
+          
+          <!-- Quests Tab -->
+          <div class="tab-pane" id="quests-tab">
+            <h2>Quests</h2>
+            <p>Your quests will be displayed here.</p>
+          </div>
+          
+          <!-- Prayer Tab -->
+          <div class="tab-pane" id="prayer-tab">
+            <h2>Prayer Shrine</h2>
+            <p>Divine abilities will be available here in a future update.</p>
+          </div>
+
+          <!-- Pet Tab -->
+          <div class="tab-pane" id="pet-tab">
+            <h2>Your Companions</h2>
+            <p>Raise and manage pets coming soon!</p>
+          </div>
+
+          <!-- Equipment Tab -->
+          <div class="tab-pane" id="equipment-tab">
+            <h2>Your Gear</h2>
+            <p>Equipment system coming soon!</p>
+          </div>
+
+          <!-- Alchemy Tab -->
+          <div class="tab-pane" id="alchemy-tab">
+            <h2>Alchemy Workbench</h2>
+            <p>Bubbling brews will appear here in a future update.</p>
+          </div>
+
+          <!-- Magic Tab -->
+          <div class="tab-pane" id="magic-tab">
+            <h2>Spellbook</h2>
+            <p>Mystical spells coming soon!</p>
+          </div>
+
+          <!-- Friends Tab -->
+          <div class="tab-pane" id="friends-tab">
+            <h2>Friends List</h2>
+            <p>Social features coming soon!</p>
+          </div>
+
+          <!-- Emotes Tab -->
+          <div class="tab-pane" id="emotes-tab">
+            <h2>Emotes</h2>
+            <p>Click an emoji to send it in chat:</p>
+            <div class="emote-grid">
+              <!-- Happy / Positive -->
+              <div class="emote-button" data-emote="😀" title="Happy">😀</div>
+              <div class="emote-button" data-emote="😊" title="Smiling">😊</div>
+              <div class="emote-button" data-emote="😂" title="Laughing">😂</div>
+              <div class="emote-button" data-emote="🤣" title="ROFL">🤣</div>
+              <div class="emote-button" data-emote="🥰" title="In Love">🥰</div>
+              <div class="emote-button" data-emote="😎" title="Cool">😎</div>
+              <div class="emote-button" data-emote="🤗" title="Hug">🤗</div>
+              <div class="emote-button" data-emote="🥳" title="Party">🥳</div>
+
+              <!-- Negative / Surprised -->
+              <div class="emote-button" data-emote="😢" title="Crying">😢</div>
+              <div class="emote-button" data-emote="😭" title="Sobbing">😭</div>
+              <div class="emote-button" data-emote="😡" title="Mad">😡</div>
+              <div class="emote-button" data-emote="😤" title="Frustrated">😤</div>
+              <div class="emote-button" data-emote="😱" title="Shocked">😱</div>
+              <div class="emote-button" data-emote="😴" title="Sleepy">😴</div>
+              <div class="emote-button" data-emote="🥺" title="Pleading">🥺</div>
+              <div class="emote-button" data-emote="🤔" title="Thinking">🤔</div>
+
+              <!-- Gestures / Actions -->
+              <div class="emote-button" data-emote="👍" title="Thumbs Up">👍</div>
+              <div class="emote-button" data-emote="👎" title="Thumbs Down">👎</div>
+              <div class="emote-button" data-emote="✋" title="High Five">✋</div>
+              <div class="emote-button" data-emote="👏" title="Clap">👏</div>
+              <div class="emote-button" data-emote="🙏" title="Pray">🙏</div>
+              <div class="emote-button" data-emote="🤝" title="Handshake">🤝</div>
+              <div class="emote-button" data-emote="👋" title="Wave">👋</div>
+              <div class="emote-button" data-emote="💪" title="Strong">💪</div>
+
+              <!-- Game / Item -->
+              <div class="emote-button" data-emote="⚔️" title="Sword">⚔️</div>
+              <div class="emote-button" data-emote="🏹" title="Bow">🏹</div>
+              <div class="emote-button" data-emote="🪄" title="Magic">🪄</div>
+              <div class="emote-button" data-emote="💰" title="Gold">💰</div>
+              <div class="emote-button" data-emote="💯" title="100">💯</div>
+              <div class="emote-button" data-emote="❗️" title="Exclaim">❗️</div>
+              <div class="emote-button" data-emote="❓" title="Question">❓</div>
+              <div class="emote-button" data-emote="⁉️" title="!?">⁉️</div>
+            </div>
+          </div>
+
+          <!-- Settings Tab -->
+          <div class="tab-pane" id="settings-tab">
+            <h2>Settings</h2>
+            <div class="settings-section">
+              <h3>Game Settings</h3>
+              <div class="setting-item">
+                <label for="music-volume">Music Volume:</label>
+                <input type="range" id="music-volume" min="0" max="100" value="50">
+              </div>
+              <div class="setting-item">
+                <label for="sound-volume">Sound Effects Volume:</label>
+                <input type="range" id="sound-volume" min="0" max="100" value="70">
+              </div>
+              <div class="setting-item">
+                <label for="bubble-opacity">Speech Bubble Opacity:</label>
+                <input type="range" id="bubble-opacity" min="10" max="100" value="50">
+                <span id="bubble-opacity-value">50%</span>
+              </div>
+            </div>
+            <div class="settings-section">
+              <h3>Developer Tools</h3>
+              <div class="setting-item">
+                <button class="control-btn" onclick="window.open('mapeditor.html', '_blank')">🗺️ Open Map Editor</button>
+              </div>
+            </div>
+            <div class="settings-section">
+              <h3>Profile</h3>
+              <div class="setting-item">
+                <label for="character-name-input">Character Name:</label>
+                <input type="text" id="character-name-input" placeholder="Enter character name">
+                <button id="change-name-btn">Update</button>
+              </div>
+              <div class="setting-item">
+                <label>Player Color:</label>
+                <div class="color-picker" id="player-color-picker">
+                  <!-- Row 1 primary hues -->
+                  <div class="color-option active" data-color="#3498db" style="background-color: #3498db;" title="Blue"></div>
+                  <div class="color-option" data-color="#e74c3c" style="background-color: #e74c3c;" title="Red"></div>
+                  <div class="color-option" data-color="#2ecc71" style="background-color: #2ecc71;" title="Green"></div>
+                  <div class="color-option" data-color="#f1c40f" style="background-color: #f1c40f;" title="Yellow"></div>
+                  <div class="color-option" data-color="#9b59b6" style="background-color: #9b59b6;" title="Purple"></div>
+                  <div class="color-option" data-color="#1abc9c" style="background-color: #1abc9c;" title="Turquoise"></div>
+                  <div class="color-option" data-color="#e67e22" style="background-color: #e67e22;" title="Orange"></div>
+                  <div class="color-option" data-color="#ecf0f1" style="background-color: #ecf0f1;" title="White"></div>
+
+                  <!-- Row 2 darker tones -->
+                  <div class="color-option" data-color="#2980b9" style="background-color: #2980b9;" title="Dark Blue"></div>
+                  <div class="color-option" data-color="#c0392b" style="background-color: #c0392b;" title="Dark Red"></div>
+                  <div class="color-option" data-color="#27ae60" style="background-color: #27ae60;" title="Dark Green"></div>
+                  <div class="color-option" data-color="#d35400" style="background-color: #d35400;" title="Pumpkin"></div>
+                  <div class="color-option" data-color="#8e44ad" style="background-color: #8e44ad;" title="Dark Purple"></div>
+                  <div class="color-option" data-color="#16a085" style="background-color: #16a085;" title="Dark Turquoise"></div>
+                  <div class="color-option" data-color="#95a5a6" style="background-color: #95a5a6;" title="Gray"></div>
+                  <div class="color-option" data-color="#2c3e50" style="background-color: #2c3e50;" title="Midnight"></div>
+
+                  <!-- Row 3 vibrant / fun -->
+                  <div class="color-option" data-color="#ff6b9d" style="background-color: #ff6b9d;" title="Pink"></div>
+                  <div class="color-option" data-color="#4ecdc4" style="background-color: #4ecdc4;" title="Mint"></div>
+                  <div class="color-option" data-color="#a8e6cf" style="background-color: #a8e6cf;" title="Light Green"></div>
+                  <div class="color-option" data-color="#ffd93d" style="background-color: #ffd93d;" title="Bright Yellow"></div>
+                  <div class="color-option" data-color="#6c5ce7" style="background-color: #6c5ce7;" title="Lavender"></div>
+                  <div class="color-option" data-color="#fd79a8" style="background-color: #fd79a8;" title="Rose"></div>
+                  <div class="color-option" data-color="#00b894" style="background-color: #00b894;" title="Teal"></div>
+                  <div class="color-option" data-color="#e17055" style="background-color: #e17055;" title="Coral"></div>
+
+                  <!-- Custom -->
+                  <input type="color" id="custom-color-input" value="#ffffff" title="Custom color" style="grid-column: span 8; height: 35px; border: none; cursor: pointer; padding: 0;">
+                </div>
+              </div>
+              <div class="setting-item">
+                <button id="reset-progress-btn" class="danger-btn">Reset All Progress</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Logout Tab -->
+          <div class="tab-pane" id="logout-tab">
+            <h2>Ready to leave?</h2>
+            <p>You can safely log out of your session here.</p>
+            <button id="logout-btn" class="logout-btn">🚪 Logout</button>
+          </div>
+        </div>
+
+        <!-- Secondary Tab Navigation (Friends, Emotes, Settings, Logout) -->
+        <div class="tabs secondary-tabs">
+          <div class="tab" data-tab="friends">👥</div>
+          <div class="tab" data-tab="emotes">💬</div>
+          <div class="tab" data-tab="settings">⚙️</div>
+          <div class="tab" data-tab="logout">🚪</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Import shared item definitions -->
+  <script src="shared/itemDefinitions.js"></script>
+  
+  <!-- Import our modular JavaScript code -->
+  <script type="module">
+    import { initGame } from './js/main.js';
+    
+    // Mark as initialized to prevent fallback from loading
+    window.webscapeInitialized = true;
+    
+    // Initialize the game when DOM is loaded
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initGame);
+    } else {
+      initGame();
+    }
+  </script>
+</body>
+</html>

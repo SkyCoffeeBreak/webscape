@@ -1,0 +1,163 @@
+/* Map Editor Layered Rendering Styles */
+.editor-tile-container {
+  position: absolute;
+  border: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.editor-tile-container:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.editor-layer-element {
+  position: absolute;
+  pointer-events: none; /* Let events pass through to container */
+}
+
+/* Current layer highlighting */
+.current-layer-highlight {
+  border: 2px solid #4CAF50 !important;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+}
+
+/* Layer-specific object styling */
+.editor-object {
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  background-color: transparent !important; /* Ensure terrain shows through */
+}
+
+/* Only show layer colors on hover or when highlighted */
+.editor-object.ground-object:hover {
+  background-color: rgba(139, 69, 19, 0.15) !important;
+  border-radius: 2px;
+}
+
+.editor-object.interactive-object:hover {
+  background-color: rgba(76, 175, 80, 0.15) !important;
+  border-radius: 2px;
+  font-weight: bold;
+}
+
+.editor-object.decorative-overlay:hover {
+  background-color: rgba(156, 39, 176, 0.15) !important;
+  border-radius: 2px;
+}
+
+.editor-object.item-layer:hover {
+  background-color: rgba(255, 193, 7, 0.15) !important;
+  border-radius: 2px;
+  font-weight: bold;
+}
+
+/* Current layer highlighting - stronger background for identification */
+.current-layer-highlight .editor-object.ground-object {
+  background-color: rgba(139, 69, 19, 0.2) !important;
+  border-radius: 2px;
+}
+
+.current-layer-highlight .editor-object.interactive-object {
+  background-color: rgba(76, 175, 80, 0.2) !important;
+  border-radius: 2px;
+}
+
+.current-layer-highlight .editor-object.decorative-overlay {
+  background-color: rgba(156, 39, 176, 0.2) !important;
+  border-radius: 2px;
+}
+
+.current-layer-highlight .editor-object.item-layer {
+  background-color: rgba(255, 193, 7, 0.2) !important;
+  border-radius: 2px;
+}
+
+/* Layer buttons styling */
+.layer-button {
+  display: inline-block;
+  padding: 8px 16px;
+  margin: 2px;
+  background-color: #444;
+  color: #ccc;
+  border: 1px solid #666;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.layer-button:hover {
+  background-color: #555;
+  border-color: #777;
+}
+
+.layer-button.active {
+  background-color: #4CAF50;
+  color: white;
+  border-color: #45a049;
+  box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+/* Layer indicator colors */
+.layer-button[data-layer="0"] { border-left: 4px solid #8BC34A; } /* Terrain - Green */
+.layer-button[data-layer="1"] { border-left: 4px solid #8B4513; } /* Ground Objects - Brown */
+.layer-button[data-layer="2"] { border-left: 4px solid #4CAF50; } /* Interactive - Bright Green */
+.layer-button[data-layer="3"] { border-left: 4px solid #9C27B0; } /* Decorative - Purple */
+
+/* Hide tile buttons for inactive layers */
+.tile-button.hidden {
+  display: none !important;
+}
+
+/* Enhanced tile button styling for layer awareness */
+.tile-button[data-tile="0"],
+.tile-button[data-tile="1"],
+.tile-button[data-tile="2"],
+.tile-button[data-tile="3"],
+.tile-button[data-tile="4"],
+.tile-button[data-tile="5"],
+.tile-button[data-tile="6"],
+.tile-button[data-tile="7"],
+.tile-button[data-tile="8"] {
+  border-left: 3px solid #8BC34A; /* Terrain tiles */
+}
+
+.tile-button[data-tile="bank"],
+.tile-button[data-tile^="tree_"],
+.tile-button[data-tile^="ore_"] {
+  border-left: 3px solid #4CAF50; /* Interactive objects */
+}
+
+/* Editor canvas background for better contrast */
+#map-editor-canvas {
+  background-color: #5a8c3e; /* Grass color to match game */
+  background-image: 
+    linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255,255,255,0.05) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.05) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.05) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+}
+
+/* Fletching animation styles */
+.player.fletching {
+  animation: fletchingMotion 1s ease-in-out infinite;
+}
+
+@keyframes fletchingMotion {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(-2deg); }
+  50% { transform: translateY(0px) rotate(0deg); }
+  75% { transform: translateY(-1px) rotate(2deg); }
+}
+
+/* Fishing animation styles */
+.player.fishing {
+  animation: fishingMotion 2s ease-in-out infinite;
+}
+
+@keyframes fishingMotion {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-1px) rotate(-3deg); }
+  50% { transform: translateY(1px) rotate(3deg); }
+  75% { transform: translateY(-0.5px) rotate(-1deg); }
+} 

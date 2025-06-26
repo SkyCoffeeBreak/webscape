@@ -1,0 +1,2256 @@
+/**
+ * Game styles for WebscapeRPG
+ */
+
+/* Emoji font fallback for world elements - only apply to emoji containers, not text */
+.layer-element,
+.world-object,
+.player-character,
+.online-player,
+#player-character,
+.skill-bubble-icon {
+  font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Android Emoji', 'EmojiSymbols', sans-serif;
+}
+
+/* Ensure skill bubble text uses normal font (excluding icon) */
+.skill-bubble span:not(.skill-bubble-icon) {
+  font-family: 'Verdana', sans-serif !important;
+}
+
+/* Firefox-specific optimizations */
+@-moz-document url-prefix() {
+  .layer-element,
+  .floor-item,
+  .player-character,
+  .online-player {
+    transform: translate3d(0, 0, 0);
+    -moz-transform: translate3d(0, 0, 0);
+    image-rendering: -moz-crisp-edges;
+    image-rendering: pixelated;
+  }
+  
+  .game-world {
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Game world container */
+.game-world {
+  position: relative;
+  margin: 20px auto;
+  border: 3px solid #8b6f47;
+  border-radius: 5px;
+  background-color: #5a8c3e; /* Default grass */
+  image-rendering: pixelated;
+  cursor: pointer;
+  /* Ensure visibility */
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-width: 960px; /* 30 * 32 = new viewport width */
+  min-height: 672px; /* 21 * 32 = new viewport height */
+  max-width: 960px;
+  max-height: 672px;
+  /* Ensure it works within flexbox */
+  flex-shrink: 0;
+  align-self: center;
+  
+  /* Firefox rendering optimizations */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -moz-backface-visibility: hidden;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+  -moz-transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Grid cell styling */
+.grid-cell {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Player character */
+.player-character {
+  transition: left 0.2s linear, top 0.2s linear;
+  will-change: left, top, transform;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+  position: absolute;
+  /* Ensure visibility */
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 10 !important;
+}
+
+/* Player directional indicators */
+.player-character::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.8;
+}
+
+.player-character.facing-north::after {
+  top: 20%;
+  left: 50%;
+}
+
+.player-character.facing-northeast::after {
+  top: 20%;
+  left: 80%;
+}
+
+.player-character.facing-east::after {
+  top: 50%;
+  left: 80%;
+}
+
+.player-character.facing-southeast::after {
+  top: 80%;
+  left: 80%;
+}
+
+.player-character.facing-south::after {
+  top: 80%;
+  left: 50%;
+}
+
+.player-character.facing-southwest::after {
+  top: 80%;
+  left: 20%;
+}
+
+.player-character.facing-west::after {
+  top: 50%;
+  left: 20%;
+}
+
+.player-character.facing-northwest::after {
+  top: 20%;
+  left: 20%;
+}
+
+/* Obstacle - No Border (Terrain Element) */
+.obstacle {
+  background-image: linear-gradient(135deg, #654321 25%, #765432 25%, #765432 50%, #654321 50%, #654321 75%, #765432 75%, #765432 100%);
+  background-size: 8px 8px;
+}
+
+/* Terrain Elements - No Borders or Outlines */
+.water {
+  /* No border - terrain should be seamless */
+}
+
+.terrain-sand {
+  /* No border - terrain should be seamless */
+}
+
+.terrain-stone {
+  /* No border - terrain should be seamless */
+}
+
+.terrain-dirt {
+  /* No border - terrain should be seamless */
+}
+
+.terrain-cobblestone {
+  /* No border - terrain should be seamless */
+}
+
+.terrain-wooden-floor {
+  /* No border - terrain should be seamless */
+}
+
+.terrain-brick-wall {
+  box-shadow: 0 3px 0px rgba(0, 0, 0, 0.8);
+  z-index: 3 !important; /* Higher than other terrain (z-index: 1) to render shadows properly */
+  position: relative; /* Ensure z-index works */
+}
+
+.terrain-rock {
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.8);
+  z-index: 3 !important; /* Higher than other terrain (z-index: 1) to render shadows properly */
+  position: relative; /* Ensure z-index works */
+}
+
+/* World Objects with Black Outlines ONLY */
+.world-object {
+  text-shadow: 1px 1px 1px #000000, -1px -1px 1px #000000, 1px -1px 1px #000000, -1px 1px 1px #000000;
+}
+
+/* Layer Elements (general styling for all interactive objects) */
+.layer-element {
+  box-sizing: border-box;
+  
+  /* Firefox rendering optimizations */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -moz-backface-visibility: hidden;
+  will-change: left, top;
+}
+
+/* Game tab styles */
+#game-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 20px;
+  height: 100%;
+  min-height: 600px;
+  background-color: #3c3c3c;
+  /* Ensure the tab can contain the game world */
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#game-tab h2 {
+  color: #ffffff;
+  margin-bottom: 20px;
+}
+
+/* Minimap */
+.minimap {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 100px;
+  height: 100px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 2px solid #ffffff;
+  border-radius: 3px;
+  z-index: 20;
+}
+
+/* Game controls */
+.game-controls {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.game-btn {
+  padding: 5px 10px;
+  background-color: #8b6f47;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.game-btn:hover {
+  background-color: #a67c52;
+}
+
+/* Path indicator */
+.path-indicator {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  z-index: 5;
+}
+
+/* Resources */
+.resource {
+  position: absolute;
+  z-index: 8;
+}
+
+.tree {
+  background-color: #2d5a1f;
+  border-radius: 50% 50% 10% 10%;
+}
+
+.rock {
+  background-color: #888888;
+  border-radius: 30%;
+}
+
+.fishing-spot {
+  background-color: #4da6ff;
+  border-radius: 50%;
+  opacity: 0.7;
+}
+
+/* Game UI overlay */
+.game-ui {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: white;
+}
+
+/* Contextual actions */
+.context-menu {
+  position: absolute;
+  background-color: #ffffff;
+  border: 1px solid #cccccc;
+  border-radius: 3px;
+  padding: 5px 0;
+  z-index: 100;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.context-menu-item {
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.context-menu-item:hover {
+  background-color: #f0f0f0;
+}
+
+/* Terrain Animations */
+@keyframes lava-glow {
+  0% { 
+    box-shadow: 0 0 5px rgba(255, 69, 0, 0.6);
+    filter: brightness(1.0);
+  }
+  100% { 
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.8);
+    filter: brightness(1.2);
+  }
+}
+
+/* Wall shadow mixin - all wall types get proper shadows that respect z-index */
+.terrain-stone-wall,
+.terrain-wood-wall,
+.terrain-metal-wall,
+.terrain-crystal-wall,
+.terrain-marble-wall,
+.terrain-obsidian-wall,
+.terrain-ice-wall,
+.terrain-thorned-wall,
+.terrain-sandstone-wall,
+.terrain-coral-wall,
+.terrain-bone-wall,
+.terrain-magic-barrier,
+.terrain-volcanic-rock,
+.terrain-bamboo-wall,
+.terrain-iron-bars,
+.terrain-energy-field {
+  z-index: 3 !important;
+  position: relative;
+}
+
+/* Shadow pseudo-element for all walls */
+.terrain-stone-wall::after,
+.terrain-wood-wall::after,
+.terrain-metal-wall::after,
+.terrain-crystal-wall::after,
+.terrain-marble-wall::after,
+.terrain-obsidian-wall::after,
+.terrain-ice-wall::after,
+.terrain-thorned-wall::after,
+.terrain-sandstone-wall::after,
+.terrain-coral-wall::after,
+.terrain-bone-wall::after,
+.terrain-magic-barrier::after,
+.terrain-volcanic-rock::after,
+.terrain-bamboo-wall::after,
+.terrain-iron-bars::after,
+.terrain-energy-field::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: -1;
+}
+
+/* Special wall effects */
+.terrain-crystal-wall {
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.terrain-ice-wall {
+  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.4);
+}
+
+/* Special wall effects for remaining walls */
+.terrain-magic-barrier {
+  box-shadow: 0 0 15px rgba(218, 112, 214, 0.6);
+}
+
+.terrain-energy-field {
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.7);
+}
+
+/* Additional Animations */
+@keyframes magic-glow {
+  0% { 
+    box-shadow: 0 0 10px rgba(218, 112, 214, 0.4);
+    filter: brightness(1.0);
+  }
+  100% { 
+    box-shadow: 0 0 20px rgba(255, 20, 147, 0.8);
+    filter: brightness(1.3);
+  }
+}
+
+@keyframes energy-pulse {
+  0% { 
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+    filter: brightness(1.0);
+  }
+  100% { 
+    box-shadow: 0 0 16px rgba(64, 224, 208, 0.9);
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes sacred-glow {
+  0% { 
+    box-shadow: 0 0 5px rgba(255, 215, 0, 0.6);
+    filter: brightness(1.0);
+  }
+  100% { 
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.9);
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes ancient-glow {
+  0% {
+    filter: brightness(1) hue-rotate(0deg);
+  }
+  100% {
+    filter: brightness(1.3) hue-rotate(15deg);
+  }
+}
+
+/* Underground black void terrain styling */
+.terrain-black-void {
+  background: #0A0A0A !important;
+  background-image: 
+    radial-gradient(circle at 30% 40%, rgba(25, 25, 25, 0.6) 2px, transparent 3px),
+    radial-gradient(circle at 70% 60%, rgba(15, 15, 15, 0.4) 1px, transparent 2px) !important;
+  background-size: 32px 32px, 16px 16px !important;
+}
+
+/* Bank note styling for noted items */
+.noted-item-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 120%;
+  height: 120%;
+  /* Ensure quantity can display on top */
+  z-index: 1;
+}
+
+.note-background {
+  position: absolute;
+  font-size: 30px;
+  z-index: 1;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.8));
+}
+
+.noted-icon {
+  position: relative;
+  z-index: 2;
+  font-size: 18px;
+  transform: translate(2px, -2px);
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
+}
+
+/* Ensure quantity displays above noted items */
+.inventory-item .inventory-item-count {
+  z-index: 3;
+}
+
+/* Ensure bank item quantity displays above noted items */
+.bank-item .bank-item-count {
+  z-index: 3;
+}
+
+/* Bank interface active button styling */
+.bank-button.active {
+  background-color: #4CAF50 !important;
+  color: white !important;
+  border: 2px solid #45a049 !important;
+}
+
+/* Bank withdraw mode toggle button styling */
+.bank-withdraw-mode-toggle {
+  background: #4a7c59;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 45px;
+  height: 40px;
+}
+
+.bank-withdraw-mode-toggle:hover {
+  background: #5a8c69;
+  transform: scale(1.05);
+}
+
+.bank-withdraw-mode-toggle.active {
+  background-color: #4CAF50 !important;
+  border: 2px solid #45a049;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
+}
+
+.withdraw-mode-icon {
+  font-size: 16px;
+  line-height: 1;
+  user-select: none;
+}
+
+/* Shop Interface Styles - Inventory Module */
+.shop-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shop-interface {
+  background-color: #2c2b29;
+  border: 3px solid #8b6f47;
+  border-radius: 5px;
+  width: 80%;
+  max-width: 900px;
+  height: 70%;
+  max-height: 700px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.shop-header {
+  background-color: #1a1918;
+  padding: 15px 20px;
+  border-bottom: 2px solid #8b6f47;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 60px;
+}
+
+.shop-info {
+  flex: 1;
+}
+
+.shop-title {
+  color: #e6d4b7;
+  font-size: 1.4em;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.shop-keeper {
+  color: #ffd700;
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-bottom: 3px;
+}
+
+.shop-description {
+  color: #a8a8a8;
+  font-size: 0.9em;
+}
+
+.shop-close {
+  background: none;
+  border: none;
+  color: #e6d4b7;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 5px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.shop-close:hover {
+  background-color: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+}
+
+.shop-content {
+  flex: 1;
+  display: flex;
+  gap: 15px;
+  padding: 25px 20px;
+  overflow: hidden;
+}
+
+.shop-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.shop-section-title {
+  color: #e6d4b7;
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-bottom: 15px;
+  padding: 12px 15px;
+  background-color: #1a1918;
+  border: 1px solid #8b6f47;
+  border-radius: 3px;
+  text-align: center;
+}
+
+.shop-grid,
+.shop-inventory-grid {
+  display: grid;
+  gap: 14px 6px; /* Increased vertical gap from 10px to 14px, reduced horizontal gap from 10px to 6px */
+  background-color: #1a1918;
+  border: 1px solid #8b6f47;
+  border-radius: 3px;
+  padding: 15px;
+  max-height: 420px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.shop-grid {
+  grid-template-columns: repeat(8, 1fr);
+}
+
+.shop-inventory-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.shop-slot,
+.shop-inventory-slot {
+  width: 48px;
+  height: 48px;
+  background-color: #2c2b29;
+  border: 1px solid #5a5754;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.2s, border-color 0.2s, transform 0.1s;
+  font-size: 20px;
+}
+
+.shop-slot:hover,
+.shop-inventory-slot:hover {
+  background-color: #3c3b39;
+  border-color: #8b6f47;
+  transform: scale(1.05);
+}
+
+.shop-slot.occupied,
+.shop-inventory-slot.occupied {
+  background-color: #3c3b39;
+}
+
+.shop-slot.occupied:hover,
+.shop-inventory-slot.occupied:hover {
+  background-color: #4a4847;
+  border-color: #ffd700;
+}
+
+.shop-item {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  font-size: 20px;
+}
+
+.shop-item.tinted {
+  filter: hue-rotate(var(--hue-rotation, 0deg));
+}
+
+.shop-item-count {
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.shop-item-price {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #ffd700;
+  font-size: 9px;
+  font-weight: bold;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  line-height: 1;
+  pointer-events: none;
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 1px 3px;
+  border-radius: 2px;
+}
+
+.shop-footer {
+  background-color: #1a1918;
+  border-top: 2px solid #8b6f47;
+  padding: 18px 12px;
+  min-height: 40px;
+}
+
+.shop-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.quantity-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quantity-selector label {
+  color: #e6d4b7;
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.qty-btn {
+  background-color: #3c3c3c;
+  color: #e6d4b7;
+  border: 1px solid #8b6f47;
+  padding: 8px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s, border-color 0.2s;
+  min-width: 40px;
+}
+
+.qty-btn:hover {
+  background-color: #4a4a4a;
+  border-color: #a0824d;
+}
+
+.qty-btn.active {
+  background-color: #8b6f47;
+  color: #ffffff;
+  border-color: #a0824d;
+}
+
+.transaction-info {
+  flex: 1;
+  color: #e6d4b7;
+  text-align: center;
+  font-size: 0.9em;
+  padding: 5px;
+  background-color: #2c2b29;
+  border: 1px solid #5a5754;
+  border-radius: 3px;
+}
+
+/* Noted items styling */
+.noted-item-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.note-background {
+  position: absolute;
+  font-size: 32px;
+  z-index: 1;
+}
+
+.noted-icon {
+  position: relative;
+  z-index: 2;
+  font-size: 16px;
+  transform: translate(2px, -2px);
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
+}
+
+/* Scrollbar styles for shop grids */
+.shop-grid::-webkit-scrollbar,
+.shop-inventory-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.shop-grid::-webkit-scrollbar-track,
+.shop-inventory-grid::-webkit-scrollbar-track {
+  background: #1a1918;
+  border-radius: 4px;
+}
+
+.shop-grid::-webkit-scrollbar-thumb,
+.shop-inventory-grid::-webkit-scrollbar-thumb {
+  background: #8b6f47;
+  border-radius: 4px;
+}
+
+.shop-grid::-webkit-scrollbar-thumb:hover,
+.shop-inventory-grid::-webkit-scrollbar-thumb:hover {
+  background: #a0824d;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 900px) {
+  .shop-interface {
+    width: 95%;
+    height: 95%;
+  }
+  
+  .shop-content {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .shop-grid {
+    grid-template-columns: repeat(6, 1fr); /* Adjusted for better mobile layout */
+    gap: 12px 5px; /* Proportional spacing: larger vertical, smaller horizontal */
+    padding: 12px; /* Reduced padding for mobile */
+  }
+  
+  .shop-inventory-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px 5px; /* Proportional spacing: larger vertical, smaller horizontal */
+    padding: 12px; /* Reduced padding for mobile */
+    max-height: 250px;
+  }
+  
+  .shop-actions {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .quantity-selector {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 600px) {
+  .shop-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px 4px; /* Proportional spacing for small mobile: larger vertical, smaller horizontal */
+    padding: 10px; /* Further reduced padding for small mobile */
+  }
+  
+  .shop-inventory-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px 4px; /* Proportional spacing for small mobile: larger vertical, smaller horizontal */
+    padding: 10px; /* Further reduced padding for small mobile */
+  }
+  
+  .shop-slot,
+  .shop-inventory-slot {
+    width: 42px; /* Slightly smaller for small mobile */
+    height: 42px; /* Slightly smaller for small mobile */
+    font-size: 18px;
+  }
+}
+
+/* Legacy shop interface styles (for old shop module - now unused) */
+
+/* Scrollbar styles for shop items */
+.shop-items::-webkit-scrollbar {
+  width: 8px;
+}
+
+.shop-items::-webkit-scrollbar-track {
+  background: #1a1918;
+  border-radius: 4px;
+}
+
+.shop-items::-webkit-scrollbar-thumb {
+  background: #8b6f47;
+  border-radius: 4px;
+}
+
+.shop-items::-webkit-scrollbar-thumb:hover {
+  background: #a0824d;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  .shop-window {
+    width: 95%;
+    height: 100%;
+  }
+  
+  .shop-main {
+    flex-direction: column;
+  }
+  
+  .shop-items {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    max-height: 30px;
+  }
+  
+  .quantity-controls {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .quantity-controls button {
+    flex: 1;
+    min-width: 80px;
+  }
+}
+
+/* Ore pile styling for ore items */
+.ore-pile {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  height: 100%;
+  transform: translateY(-0.25em); /* Move entire pile up by 8 pixels */
+}
+
+.ore-small {
+  position: absolute;
+  top: 15%;
+  left: 20%;
+  font-size: 0.36em;
+  z-index: 1;
+  opacity: 0.9;
+}
+
+.ore-medium {
+  position: absolute;
+  top: 25%;
+  right: 15%;
+  font-size: 0.48em;
+  z-index: 2;
+  opacity: 0.95;
+}
+
+.ore-large {
+  position: absolute;
+  bottom: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6em;
+  z-index: 3;
+  opacity: 1;
+}
+
+/* Metal ingot styling for all metal bars */
+.metal-ingot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 1.1em;
+  transform: scaleX(1.15) scaleY(0.55); /* Make it wider and shorter like an ingot */
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+/* Skill Experience Tooltips */
+.skill-tooltip {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.9);
+  border: 2px solid #8b6f47;
+  border-radius: 5px;
+  padding: 10px 12px;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.4;
+  z-index: 10000;
+  pointer-events: none;
+  min-width: 180px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.tooltip-header {
+  font-size: 13px;
+  color: #ffd700;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.tooltip-level {
+  color: #ffffff;
+  font-weight: bold;
+  margin-bottom: 3px;
+}
+
+.tooltip-exp {
+  color: #66ff66;
+  margin-bottom: 3px;
+}
+
+.tooltip-next {
+  color: #ffffff;
+  margin-bottom: 3px;
+}
+
+.tooltip-remaining {
+  color: #ffaa00;
+  margin-bottom: 6px;
+}
+
+.tooltip-progress {
+  margin-top: 6px;
+}
+
+.tooltip-max {
+  color: #ffd700;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 3px;
+}
+
+.tooltip-overflow {
+  color: #66ff66;
+  font-style: italic;
+  text-align: center;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12px;
+  background-color: #333333;
+  border: 1px solid #666666;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 3px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00ff00 0%, #66ff66 50%, #00ff00 100%);
+  transition: width 0.3s ease;
+  border-radius: 5px;
+}
+
+.progress-text {
+  color: #cccccc;
+  font-size: 10px;
+  text-align: center;
+}
+
+/* Mining Animation Styles */
+.mining-animation {
+  position: absolute;
+  left: 50%;
+  top: -30px;
+  transform: translateX(-50%);
+  font-size: 20px;
+  z-index: 15;
+  pointer-events: none;
+  animation: mining-swing 1s infinite;
+}
+
+/* Mining Bubble Styles */
+.mining-bubble-container {
+  position: absolute;
+  left: -30px; 
+  top: -56px; /* Moved up 8 pixels from -45px */
+  z-index: 15;
+  pointer-events: none;
+  animation: mining-bubble-float 2s infinite ease-in-out;
+}
+
+.mining-bubble {
+  background-color: rgba(255, 255, 255, 0.4);
+  border: 2px solid #333;
+  border-radius: 15px;
+  padding: 8px 12px;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 35px;
+  min-height: 25px;
+}
+
+.mining-bubble-tail {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid #333;
+}
+
+@keyframes mining-swing {
+  0%, 100% { transform: rotate(-10deg); }
+  50% { transform: rotate(25deg); }
+}
+
+@keyframes mining-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes mining-bubble-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+
+/* Woodcutting animations */
+@keyframes woodcutting-swing {
+  0%, 100% { transform: rotate(-15deg) scale(1); }
+  25% { transform: rotate(20deg) scale(1.05); }
+  50% { transform: rotate(-5deg) scale(1.1); }
+  75% { transform: rotate(15deg) scale(1.05); }
+}
+
+@keyframes woodcutting-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+/* Woodcutting bubble styles */
+.woodcutting-bubble-container {
+  position: absolute;
+  top: -45px;
+  left: -30px; /* Moved 20px left from -10px */
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.woodcutting-bubble {
+  /* Styles applied inline for better control */
+}
+
+.woodcutting-bubble-tail {
+  /* Styles applied inline for better control */
+}
+
+/* Standardized Skill Action Bubble System */
+.skill-bubble-container {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  pointer-events: none;
+  z-index: 1000;
+  animation: skill-bubble-float 2s infinite ease-in-out;
+  width: max-content;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Online player action bubbles - slightly different styling */
+.skill-bubble-container.online-player-bubble {
+  top: -65px; /* Slightly higher to avoid overlap */
+}
+
+.skill-bubble-container.online-player-bubble .skill-bubble {
+  background: rgba(30, 144, 255, 0.9); /* Blue background for other players */
+  border: 1px solid rgba(30, 144, 255, 0.3);
+}
+
+.skill-bubble-container.online-player-bubble .skill-bubble-tail {
+  border-top: 8px solid rgba(30, 144, 255, 0.9);
+}
+
+.skill-bubble {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  margin: 0;
+}
+
+.skill-bubble-icon {
+  font-size: 16px;
+  animation: skill-icon-pulse 1.5s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+.skill-bubble-tail {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(0, 0, 0, 0.8);
+}
+
+/* Skill-specific icon animations */
+.skill-bubble-icon.mining {
+  animation: mining-swing 1.2s infinite ease-in-out;
+}
+
+.skill-bubble-icon.woodcutting {
+  animation: woodcutting-swing 1.5s infinite ease-in-out;
+}
+
+.skill-bubble-icon.fishing {
+  animation: fishing-cast 2.0s infinite ease-in-out;
+}
+
+/* Standardized animations */
+@keyframes skill-bubble-float {
+  0%, 100% { transform: translateX(-50%) translateY(0px); }
+  50% { transform: translateX(-50%) translateY(-3px); }
+}
+
+@keyframes skill-icon-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes mining-swing {
+  0%, 100% { transform: rotate(-10deg); }
+  50% { transform: rotate(25deg); }
+}
+
+@keyframes woodcutting-swing {
+  0%, 100% { transform: rotate(-15deg) scale(1); }
+  25% { transform: rotate(20deg) scale(1.05); }
+  50% { transform: rotate(-5deg) scale(1.1); }
+  75% { transform: rotate(15deg) scale(1.05); }
+}
+
+@keyframes fishing-cast {
+  0%, 100% { transform: translateY(0px) rotate(-10deg) scale(1); }
+  25% { transform: translateY(-2px) rotate(15deg) scale(1.05); }
+  50% { transform: translateY(1px) rotate(-5deg) scale(1.1); }
+  75% { transform: translateY(-1px) rotate(10deg) scale(1.05); }
+}
+
+/* Fishing spot swirl animation */
+.fishing-spot-swirl {
+  animation: fishing-spot-swirl 3s linear infinite !important;
+  opacity: 0.8 !important;
+}
+
+@keyframes fishing-spot-swirl {
+  0% { transform: rotate(0deg) scale(0.8); }
+  25% { transform: rotate(90deg) scale(0.84); }
+  50% { transform: rotate(180deg) scale(0.88); }
+  75% { transform: rotate(270deg) scale(0.84); }
+  100% { transform: rotate(360deg) scale(0.8); }
+}
+
+/* Legacy support - old specific bubble containers (deprecated) */
+.mining-bubble-container,
+.woodcutting-bubble-container {
+  position: absolute;
+  top: -56px;
+  left: 50%;
+  pointer-events: none;
+  z-index: 1000;
+  animation: skill-bubble-float 2s infinite ease-in-out;
+  width: max-content;
+}
+
+.mining-bubble,
+.woodcutting-bubble {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  margin: 0 auto;
+  width: max-content;
+}
+
+.mining-bubble-tail,
+.woodcutting-bubble-tail {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(0, 0, 0, 0.8);
+}
+
+/* Multiplayer Styles */
+
+/* Login Modal */
+.login-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.login-modal-content {
+  background-color: #2c3e50;
+  border-radius: 10px;
+  padding: 30px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  border: 2px solid #34495e;
+}
+
+.login-modal-content h2 {
+  color: #ecf0f1;
+  text-align: center;
+  margin-bottom: 25px;
+  font-size: 24px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.login-form {
+  color: #ecf0f1;
+}
+
+/* Form Tabs */
+.form-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid #34495e;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 12px;
+  background-color: #34495e;
+  color: #bdc3c7;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: bold;
+}
+
+.tab-btn:hover {
+  background-color: #415769;
+}
+
+.tab-btn.active {
+  background-color: #3498db;
+  color: white;
+}
+
+/* Login/Register Forms */
+.login-tab,
+.register-tab {
+  display: none;
+}
+
+.login-tab.active,
+.register-tab.active {
+  display: block;
+}
+
+.login-tab input,
+.register-tab input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  border: 2px solid #34495e;
+  border-radius: 5px;
+  background-color: #34495e;
+  color: #ecf0f1;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease;
+}
+
+.login-tab input:focus,
+.register-tab input:focus {
+  outline: none;
+  border-color: #3498db;
+  background-color: #415769;
+}
+
+.login-tab input::placeholder,
+.register-tab input::placeholder {
+  color: #95a5a6;
+}
+
+.login-tab button,
+.register-tab button {
+  width: 100%;
+  padding: 12px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-bottom: 10px;
+}
+
+.login-tab button:hover,
+.register-tab button:hover {
+  background-color: #2980b9;
+}
+
+.login-tab button:disabled,
+.register-tab button:disabled {
+  background-color: #7f8c8d;
+  cursor: not-allowed;
+}
+
+/* Error Messages */
+.error-message {
+  color: #e74c3c;
+  font-size: 14px;
+  text-align: center;
+  margin-top: 10px;
+  min-height: 20px;
+}
+
+
+
+
+
+
+
+/* Enhanced Button Styling */
+.btn-primary {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #2980b9, #1f5f99);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Multiplayer Status */
+.multiplayer-status {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.multiplayer-status span {
+  color: #bdc3c7;
+}
+
+.btn-small {
+  padding: 4px 8px;
+  font-size: 11px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.btn-small:hover {
+  background-color: #2980b9;
+}
+
+/* Online Count */
+.online-count {
+  background-color: rgba(52, 73, 94, 0.9);
+  color: #ecf0f1;
+  padding: 5px 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: bold;
+  border-bottom: 1px solid #34495e;
+}
+
+/* Online Player Indicators */
+.online-player {
+  position: absolute;
+  border: 3px solid #e74c3c;
+  box-shadow: 0 0 12px rgba(231, 76, 60, 0.8);
+  border-radius: 6px;
+  z-index: 12;
+  transition: left 0.3s ease, top 0.3s ease, transform 0.2s ease;
+}
+
+.online-player:hover {
+  border-color: #3498db;
+  box-shadow: 0 0 16px rgba(52, 152, 219, 1);
+  transform: scale(1.1);
+}
+
+.online-player-username {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  white-space: nowrap;
+  margin-bottom: 6px;
+  z-index: 15;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Chat Message Types */
+.chat-message.multiplayer {
+  background-color: rgba(52, 152, 219, 0.1);
+  border-left: 3px solid #3498db;
+}
+
+.chat-message.multiplayer .chat-username {
+  color: #3498db;
+  font-weight: bold;
+}
+
+/* Responsive Design */
+@media (max-width: 500px) {
+  .login-modal-content {
+    width: 90vw;
+    padding: 20px;
+  }
+  
+  .login-modal-content h2 {
+    font-size: 20px;
+  }
+  
+  .multiplayer-status {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .online-player::before {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+}
+
+/* Online Player Speech Bubbles */
+.online-player-bubble {
+  border-color: #e74c3c !important;
+  background-color: rgba(231, 76, 60, 0.1) !important;
+  box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3) !important;
+}
+
+.online-player-bubble::after {
+  border-top-color: rgba(231, 76, 60, 0.1) !important;
+}
+
+/* Skill Experience Bars */
+.skill-exp-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 3px;
+  margin-top: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.skill-exp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00aa00 0%, #66ff66 50%, #00aa00 100%);
+  transition: width 0.5s ease-in-out;
+  border-radius: 2px;
+  box-shadow: 0 0 4px rgba(102, 255, 102, 0.3);
+}
+
+/* Animation for experience gains */
+.skill-exp-fill.exp-gain {
+  animation: exp-gain-flash 0.6s ease-out;
+}
+
+@keyframes exp-gain-flash {
+  0% { box-shadow: 0 0 4px rgba(102, 255, 102, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(102, 255, 102, 0.8); }
+  100% { box-shadow: 0 0 4px rgba(102, 255, 102, 0.3); }
+}
+
+/* Cooking Interface Styles */
+.cooking-interface {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #2c1810, #3d2418);
+  border: 3px solid #8b6f47;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  min-width: 400px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  z-index: 1000;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.cooking-header {
+  background: linear-gradient(135deg, #8b6f47, #a0845c);
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #654321;
+}
+
+.cooking-header h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 18px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.close-btn {
+  background: #d32f2f;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+  background: #b71c1c;
+}
+
+.cooking-content {
+  padding: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.cooking-recipes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cooking-recipe {
+  background: linear-gradient(135deg, #4a3728, #5d4435);
+  border: 2px solid #6d5142;
+  border-radius: 8px;
+  padding: 15px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.cooking-recipe:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  border-color: #8b6f47;
+}
+
+.recipe-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.recipe-name {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffffff;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.recipe-level {
+  background: #2c5aa0;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.recipe-xp {
+  background: #388e3c;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.recipe-quantity {
+  background: #6d4c41;
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.recipe-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.recipe-actions button {
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+  min-width: 80px;
+}
+
+.recipe-actions button:hover {
+  background: linear-gradient(135deg, #388e3c, #4caf50);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.recipe-actions button:active {
+  transform: translateY(0);
+}
+
+.no-recipes {
+  text-align: center;
+  color: #bbb;
+  font-style: italic;
+  padding: 40px 20px;
+  font-size: 16px;
+}
+
+.cooking-status {
+  padding: 20px;
+  text-align: center;
+}
+
+.cooking-progress {
+  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  border: 2px solid #8b4513;
+  border-radius: 10px;
+  height: 20px;
+  margin: 15px 0;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.cooking-progress .progress-bar {
+  background: linear-gradient(90deg, #ff6b35, #f7931e);
+  height: 100%;
+  width: 0%;
+  transition: width 0.1s linear;
+  border-radius: 8px;
+  position: relative;
+}
+
+.cooking-progress .progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    transparent 100%);
+  animation: progress-shine 2s ease-in-out infinite;
+}
+
+@keyframes progress-shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.cooking-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 15px 0;
+  color: #ffffff;
+}
+
+.cooking-info span {
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.cancel-cooking-btn {
+  background: linear-gradient(135deg, #f44336, #e57373);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 10px;
+}
+
+.cancel-cooking-btn:hover {
+  background: linear-gradient(135deg, #c82333, #bd2130);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Recipe icons styling */
+.recipe-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.recipe-icons .raw-icon,
+.recipe-icons .cooked-icon {
+  display: inline-block;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(139, 69, 19, 0.3);
+  min-width: 32px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.recipe-icons .raw-icon:hover,
+.recipe-icons .cooked-icon:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(139, 69, 19, 0.5);
+  transform: scale(1.1);
+}
+
+.recipe-icons .arrow {
+  color: #8b4513;
+  font-weight: bold;
+  font-size: 16px;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.cooking-status-icons {
+  font-size: 16px;
+  margin-right: 8px;
+  display: inline-block;
+  padding: 2px 4px;
+  background: rgba(139, 69, 19, 0.2);
+  border-radius: 4px;
+  border: 1px solid rgba(139, 69, 19, 0.3);
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 500px) {
+  .cooking-interface {
+    min-width: 90vw;
+    max-width: 90vw;
+  }
+  
+  .recipe-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .recipe-actions {
+    justify-content: stretch;
+  }
+  
+  .recipe-actions button {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .recipe-icons {
+    font-size: 18px;
+    gap: 6px;
+  }
+  
+  .recipe-icons .raw-icon,
+  .recipe-icons .cooked-icon {
+    min-width: 28px;
+    padding: 3px 5px;
+  }
+}
+
+/* Harvesting interface styles */
+.harvesting-interface {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.harvesting-modal {
+  background: linear-gradient(145deg, #2c2c2c, #1a1a1a);
+  border: 2px solid #444;
+  border-radius: 12px;
+  padding: 20px;
+  width: 400px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  transform: translate(-50%, -50%) scale(0.9);
+  transition: transform 0.3s ease;
+  position: relative;
+}
+
+.harvesting-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #444;
+  padding-bottom: 10px;
+}
+
+.harvesting-header h3 {
+  color: #fff;
+  margin: 0;
+  font-size: 24px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.harvesting-close-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 18px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.harvesting-close-btn:hover {
+  background: #c82333;
+}
+
+.harvesting-content {
+  color: #fff;
+}
+
+.harvesting-node-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: linear-gradient(145deg, #333, #222);
+  border-radius: 8px;
+  border: 1px solid #555;
+}
+
+.harvesting-node-icon {
+  font-size: 48px;
+  margin-right: 15px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.harvesting-node-details {
+  flex: 1;
+}
+
+.harvesting-node-name {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #fff;
+}
+
+.harvesting-node-level {
+  font-size: 14px;
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.harvesting-progress {
+  margin-bottom: 20px;
+}
+
+.harvesting-progress-text {
+  font-size: 16px;
+  margin-bottom: 10px;
+  text-align: center;
+  color: #fff;
+  font-weight: bold;
+}
+
+.harvesting-progress-bar-container {
+  width: 100%;
+  height: 24px;
+  background: #333;
+  border: 2px solid #555;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.harvesting-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  border-radius: 10px;
+  transition: width 0.1s ease;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+}
+
+.harvesting-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.harvesting-stat {
+  background: linear-gradient(145deg, #333, #222);
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: #ccc;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.harvesting-actions {
+  text-align: center;
+}
+
+.harvesting-cancel-btn {
+  background: linear-gradient(145deg, #dc3545, #c82333);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.harvesting-cancel-btn:hover {
+  background: linear-gradient(145deg, #c82333, #bd2130);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.harvesting-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+
+/* Compact Harvesting Interface - Non-obstructive */
+.harvesting-interface-compact {
+  position: fixed;
+  top: 120px;
+  right: 20px;
+  z-index: 500; /* Lower than full interfaces */
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: all 0.2s ease;
+  pointer-events: none; /* Allow clicks through to the game */
+}
+
+.harvesting-compact-modal {
+  background: linear-gradient(145deg, #2c2c2c, #1a1a1a);
+  border: 2px solid #444;
+  border-radius: 8px;
+  padding: 12px;
+  width: 240px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  pointer-events: auto; /* Only the modal itself catches clicks */
+}
+
+.harvesting-compact-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.harvesting-compact-icon {
+  font-size: 18px;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
+}
+
+.harvesting-compact-title {
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  flex: 1;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
+}
+
+.harvesting-compact-close {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.harvesting-compact-close:hover {
+  background: #c82333;
+}
+
+.harvesting-compact-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.harvesting-compact-progress-bar {
+  flex: 1;
+  height: 16px;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.harvesting-compact-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: var(--progress-width, 0%);
+  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  border-radius: 6px;
+  transition: width 0.1s ease;
+}
+
+.harvesting-compact-progress-text {
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  min-width: 32px;
+  text-align: center;
+} 

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ladder Transition System Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        .status {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        .pass { background: #2d5a2d; border: 1px solid #4a804a; }
+        .fail { background: #5a2d2d; border: 1px solid #804a4a; }
+        .info { background: #2d3a5a; border: 1px solid #4a5a80; }
+        .coordinate-display {
+            background: #333;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        button {
+            background: #4a5a80;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #5a6a90;
+        }
+        .ladder-test {
+            background: #333;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .coordinate-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 15px 0;
+        }
+        .level-info {
+            background: #444;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🪜 Ladder Transition System Test</h1>
+    <p>Testing the ladder system with coordinate offset underground implementation.</p>
+
+    <div class="test-section">
+        <h2>🎯 Player Position Tracking</h2>
+        <div class="coordinate-display" id="position-tracking">
+            Loading position data...
+        </div>
+        <button onclick="moveToLadder()">🚀 Move to Ladder (52, 52)</button>
+        <button onclick="moveToSpawn()">🏠 Move to Spawn (50, 50)</button>
+    </div>
+
+    <div class="test-section">
+        <h2>🪜 Ladder Functionality Tests</h2>
+        <div class="ladder-test">
+            <h3>Ladder Placement Verification</h3>
+            <button onclick="checkLadderPlacement()">🔍 Check Ladder Placement</button>
+            <div id="ladder-placement-results"></div>
+        </div>
+        
+        <div class="ladder-test">
+            <h3>Map Level Transitions</h3>
+            <div class="coordinate-comparison">
+                <div class="level-info">
+                    <h4>🌍 Surface Level</h4>
+                    <button onclick="switchToSurface()">Switch to Surface</button>
+                    <div id="surface-coords">-</div>
+                </div>
+                <div class="level-info">
+                    <h4>🏔️ Underground Level</h4>
+                    <button onclick="switchToUnderground()">Switch to Underground</button>
+                    <div id="underground-coords">-</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ladder-test">
+            <h3>Coordinate Translation Tests</h3>
+            <button onclick="testCoordinateTranslation()">🧮 Test Coordinate Translation</button>
+            <div id="coordinate-translation-results"></div>
+        </div>
+        
+        <div class="ladder-test">
+            <h3>Automated Ladder Transition Test</h3>
+            <button onclick="runLadderTransitionTest()">🔄 Run Automated Test</button>
+            <div id="transition-test-results"></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 System Status</h2>
+        <button onclick="runAllTests()">🧪 Run All Tests</button>
+        <div id="system-status-results"></div>
+    </div>
+
+    <script type="module">
+        // Import world module
+        import * as worldModule from './js/modules/world.js';
+        
+        // Make modules available globally for testing
+        window.worldModule = worldModule;
+        
+        // Initialize world for testing
+        worldModule.initializeWorld();
+        
+        // Start position tracking
+        startPositionTracking();
+        
+        console.log('Ladder transition test environment loaded');
+    </script>
+
+    <script>
+        // Position tracking
+        function startPositionTracking() {
+            updatePositionDisplay();
+            setInterval(updatePositionDisplay, 500); // Update every 500ms
+        }
+
+        function updatePositionDisplay() {
+            const display = document.getElementById('position-tracking');
+            
+            try {
+                if (window.worldModule) {
+                    const playerPos = window.worldModule.getPlayerPosition();
+                    const currentLevel = window.worldModule.getCurrentMapLevel();
+                    
+                    // Get actual coordinates
+                    const actualCoords = window.worldModule.getActualCoordinates ? 
+                        window.worldModule.getActualCoordinates(playerPos.x, playerPos.y, currentLevel) : 
+                        { actualX: playerPos.x, actualY: playerPos.y };
+                    
+                    // Check if player is at ladder position
+                    const atLadder = Math.floor(playerPos.x) === 52 && Math.floor(playerPos.y) === 52;
+                    const ladderStatus = atLadder ? ' 🪜 AT LADDER' : '';
+                    
+                    display.innerHTML = `
+                        <strong>Player Position:</strong> (${playerPos.x.toFixed(2)}, ${playerPos.y.toFixed(2)})${ladderStatus}<br>
+                        <strong>Current Map Level:</strong> ${currentLevel}<br>
+                        <strong>Physical Coordinates:</strong> (${actualCoords.actualX}, ${actualCoords.actualY})<br>
+                        <strong>Map Offset:</strong> ${currentLevel === 'underground' ? '500,000 tiles' : 'No offset'}
+                    `;
+                    
+                    // Update level-specific displays
+                    updateLevelCoordinates('surface', playerPos);
+                    updateLevelCoordinates('underground', playerPos);
+                } else {
+                    display.innerHTML = 'World module not loaded';
+                }
+            } catch (error) {
+                display.innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        function updateLevelCoordinates(level, playerPos) {
+            const element = document.getElementById(`${level}-coords`);
+            if (!element || !window.worldModule.getActualCoordinates) return;
+            
+            const coords = window.worldModule.getActualCoordinates(playerPos.x, playerPos.y, level);
+            element.innerHTML = `
+                Logical: (${playerPos.x.toFixed(2)}, ${playerPos.y.toFixed(2)})<br>
+                Physical: (${coords.actualX}, ${coords.actualY})
+            `;
+        }
+
+        // Movement functions
+        function moveToLadder() {
+            if (window.worldModule && window.worldModule.setPlayerPosition) {
+                window.worldModule.setPlayerPosition(52, 52);
+                addTestResult('Moved player to ladder position (52, 52)', 'info');
+                setTimeout(updatePositionDisplay, 100);
+            }
+        }
+
+        function moveToSpawn() {
+            if (window.worldModule && window.worldModule.setPlayerPosition) {
+                window.worldModule.setPlayerPosition(50, 50);
+                addTestResult('Moved player to spawn position (50, 50)', 'info');
+                setTimeout(updatePositionDisplay, 100);
+            }
+        }
+
+        // Map level switching
+        function switchToSurface() {
+            if (window.worldModule && window.worldModule.setCurrentMapLevel) {
+                window.worldModule.setCurrentMapLevel('surface');
+                addTestResult('Switched to surface level', 'info');
+                setTimeout(updatePositionDisplay, 100);
+            }
+        }
+
+        function switchToUnderground() {
+            if (window.worldModule && window.worldModule.setCurrentMapLevel) {
+                window.worldModule.setCurrentMapLevel('underground');
+                addTestResult('Switched to underground level', 'info');
+                setTimeout(updatePositionDisplay, 100);
+            }
+        }
+
+        // Test functions
+        function checkLadderPlacement() {
+            const resultsDiv = document.getElementById('ladder-placement-results');
+            resultsDiv.innerHTML = '<h4>Checking ladder placement...</h4>';
+            
+            try {
+                if (!window.worldModule.getTileOnLayer) {
+                    resultsDiv.innerHTML += '<div class="status fail">getTileOnLayer function not available</div>';
+                    return;
+                }
+                
+                // Check surface ladder (should be ladder_down)
+                const surfaceLadder = window.worldModule.getTileOnLayer(2, 52, 52, 'surface');
+                const surfaceResult = surfaceLadder === 'ladder_down' ? 'pass' : 'fail';
+                resultsDiv.innerHTML += `<div class="status ${surfaceResult}">Surface (52,52): ${surfaceLadder || 'none'} ${surfaceResult === 'pass' ? '✓' : '✗'}</div>`;
+                
+                // Check underground ladder (should be ladder_up)
+                const undergroundLadder = window.worldModule.getTileOnLayer(2, 52, 52, 'underground');
+                const undergroundResult = undergroundLadder === 'ladder_up' ? 'pass' : 'fail';
+                resultsDiv.innerHTML += `<div class="status ${undergroundResult}">Underground (52,52): ${undergroundLadder || 'none'} ${undergroundResult === 'pass' ? '✓' : '✗'}</div>`;
+                
+                // Check terrain under ladders
+                const surfaceTerrain = window.worldModule.getTileOnLayer(0, 52, 52, 'surface');
+                const undergroundTerrain = window.worldModule.getTileOnLayer(0, 52, 52, 'underground');
+                
+                resultsDiv.innerHTML += `<div class="status info">Surface terrain: ${surfaceTerrain} (should be 0 - grass)</div>`;
+                resultsDiv.innerHTML += `<div class="status info">Underground terrain: ${undergroundTerrain} (should be 57 - black void)</div>`;
+                
+            } catch (error) {
+                resultsDiv.innerHTML += `<div class="status fail">Error: ${error.message}</div>`;
+            }
+        }
+
+        function testCoordinateTranslation() {
+            const resultsDiv = document.getElementById('coordinate-translation-results');
+            resultsDiv.innerHTML = '<h4>Testing coordinate translation...</h4>';
+            
+            try {
+                if (!window.worldModule.getActualCoordinates) {
+                    resultsDiv.innerHTML += '<div class="status fail">getActualCoordinates function not available</div>';
+                    return;
+                }
+                
+                // Test ladder position translation
+                const surfaceCoords = window.worldModule.getActualCoordinates(52, 52, 'surface');
+                const undergroundCoords = window.worldModule.getActualCoordinates(52, 52, 'underground');
+                
+                resultsDiv.innerHTML += `<div class="status ${surfaceCoords.actualX === 52 && surfaceCoords.actualY === 52 ? 'pass' : 'fail'}">Surface (52,52) → (${surfaceCoords.actualX},${surfaceCoords.actualY}) ${surfaceCoords.actualX === 52 ? '✓' : '✗'}</div>`;
+                resultsDiv.innerHTML += `<div class="status ${undergroundCoords.actualX === 500052 && undergroundCoords.actualY === 500052 ? 'pass' : 'fail'}">Underground (52,52) → (${undergroundCoords.actualX},${undergroundCoords.actualY}) ${undergroundCoords.actualX === 500052 ? '✓' : '✗'}</div>`;
+                
+                // Test offset calculation
+                const offset = undergroundCoords.actualX - surfaceCoords.actualX;
+                resultsDiv.innerHTML += `<div class="status ${offset === 500000 ? 'pass' : 'fail'}">Coordinate offset: ${offset} (should be 500,000) ${offset === 500000 ? '✓' : '✗'}</div>`;
+                
+            } catch (error) {
+                resultsDiv.innerHTML += `<div class="status fail">Error: ${error.message}</div>`;
+            }
+        }
+
+        function runLadderTransitionTest() {
+            const resultsDiv = document.getElementById('transition-test-results');
+            resultsDiv.innerHTML = '<h4>Running automated ladder transition test...</h4>';
+            
+            try {
+                // Step 1: Move to ladder position
+                moveToLadder();
+                resultsDiv.innerHTML += '<div class="status info">Step 1: Moved to ladder position ✓</div>';
+                
+                // Step 2: Start on surface
+                switchToSurface();
+                let currentLevel = window.worldModule.getCurrentMapLevel();
+                resultsDiv.innerHTML += `<div class="status ${currentLevel === 'surface' ? 'pass' : 'fail'}">Step 2: On surface level (${currentLevel}) ${currentLevel === 'surface' ? '✓' : '✗'}</div>`;
+                
+                // Step 3: Check surface coordinates
+                const playerPos = window.worldModule.getPlayerPosition();
+                const surfaceCoords = window.worldModule.getActualCoordinates(playerPos.x, playerPos.y, 'surface');
+                resultsDiv.innerHTML += `<div class="status info">Step 3: Surface coordinates - Logical: (${Math.floor(playerPos.x)}, ${Math.floor(playerPos.y)}), Physical: (${surfaceCoords.actualX}, ${surfaceCoords.actualY})</div>`;
+                
+                // Step 4: Switch to underground
+                setTimeout(() => {
+                    switchToUnderground();
+                    currentLevel = window.worldModule.getCurrentMapLevel();
+                    resultsDiv.innerHTML += `<div class="status ${currentLevel === 'underground' ? 'pass' : 'fail'}">Step 4: Switched to underground level (${currentLevel}) ${currentLevel === 'underground' ? '✓' : '✗'}</div>`;
+                    
+                    // Step 5: Check underground coordinates
+                    const undergroundCoords = window.worldModule.getActualCoordinates(playerPos.x, playerPos.y, 'underground');
+                    resultsDiv.innerHTML += `<div class="status info">Step 5: Underground coordinates - Logical: (${Math.floor(playerPos.x)}, ${Math.floor(playerPos.y)}), Physical: (${undergroundCoords.actualX}, ${undergroundCoords.actualY})</div>`;
+                    
+                    // Step 6: Verify logical position stayed the same
+                    const logicalSame = Math.floor(playerPos.x) === 52 && Math.floor(playerPos.y) === 52;
+                    resultsDiv.innerHTML += `<div class="status ${logicalSame ? 'pass' : 'fail'}">Step 6: Logical position maintained ${logicalSame ? '✓' : '✗'}</div>`;
+                    
+                    // Step 7: Verify physical offset
+                    const correctOffset = undergroundCoords.actualX - surfaceCoords.actualX === 500000;
+                    resultsDiv.innerHTML += `<div class="status ${correctOffset ? 'pass' : 'fail'}">Step 7: Physical offset correct (${undergroundCoords.actualX - surfaceCoords.actualX}) ${correctOffset ? '✓' : '✗'}</div>`;
+                    
+                    resultsDiv.innerHTML += '<div class="status pass">✅ Automated ladder transition test completed!</div>';
+                }, 200);
+                
+            } catch (error) {
+                resultsDiv.innerHTML += `<div class="status fail">Error: ${error.message}</div>`;
+            }
+        }
+
+        function runAllTests() {
+            clearTestResults();
+            addTestResult('Running comprehensive ladder system tests...', 'info');
+            
+            checkLadderPlacement();
+            setTimeout(() => {
+                testCoordinateTranslation();
+                setTimeout(() => {
+                    runLadderTransitionTest();
+                }, 300);
+            }, 200);
+        }
+
+        // Helper functions
+        function addTestResult(message, type) {
+            const resultsDiv = document.getElementById('system-status-results');
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            resultsDiv.appendChild(statusDiv);
+        }
+
+        function clearTestResults() {
+            document.getElementById('system-status-results').innerHTML = '';
+        }
+
+        // Auto-run basic tests on load
+        setTimeout(() => {
+            checkLadderPlacement();
+        }, 1000);
+    </script>
+</body>
+</html> 

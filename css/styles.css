@@ -1,0 +1,1503 @@
+/**
+ * Main styles for WebscapeRPG
+ */
+
+/* Emoji font fallback for consistent rendering - only apply to emoji ranges */
+.emoji, 
+.skill-icon,
+.tile-button,
+.editor-tile,
+[data-tile],
+.online-player,
+#player-character {
+  font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Android Emoji', 'EmojiSymbols', sans-serif;
+}
+
+/* Ensure numbers and text in UI elements use normal font */
+.skill-bubble,
+.chat-message,
+.character-level,
+.skill-level,
+.skill-name,
+.tab,
+.setting-item,
+input,
+button,
+span:not(.skill-icon):not(.skill-bubble-icon):not(.emoji) {
+  font-family: 'Verdana', sans-serif !important;
+}
+
+ body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Verdana', sans-serif;
+  background-color: #2c2c2c;
+  color: #ffffff;
+}
+
+.game-container {
+  display: flex;
+  flex-direction: column;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Character profile at the top */
+.character-profile {
+  background: linear-gradient(135deg, #4a3c28 0%, #6b5839 50%, #4a3c28 100%);
+  padding: 10px 20px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.character-name {
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.character-info {
+  display: flex;
+  gap: 20px;
+}
+
+.character-stats {
+  color: #ffffff;
+  font-size: 16px;
+}
+
+.character-level {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+/* Main content area with the game and tabs side by side */
+.main-content {
+  display: flex;
+  gap: 20px;
+  min-height: 500px;
+}
+
+/* Game area on the left */
+.game-area {
+  flex: 3;
+  background-color: #3c3c3c;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  min-width: 980px;
+}
+
+#game-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Information area on the right */
+.info-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #3c3c3c;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  overflow: hidden;
+}
+
+/* Tab navigation */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  background-color: #2c2c2c;
+  border-bottom: 3px solid #8b6f47;
+  gap: 1px;
+}
+
+.tab {
+  padding: 6px 8px;
+  cursor: pointer;
+  color: #cccccc;
+  background-color: #34495e;
+  border: 1px solid #2c2c2c;
+  transition: background-color 0.2s;
+  font-size: 17px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  min-width: 80px;
+  text-align: center;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
+.tab:hover {
+  background-color: #3e5673;
+}
+
+.tab.active {
+  background-color: #8b6f47;
+  color: white;
+  font-weight: bold;
+}
+
+/* Tab content */
+.tab-content {
+  flex: 1;
+  overflow-y: hidden;
+}
+
+.tab-pane {
+  display: none;
+  padding: 20px;
+  height: 100%;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+/* Skills tab */
+.skill-ui {
+  display: grid;
+  grid-template-columns: repeat(4, 82px);
+  gap: 4px;
+  margin-top: 10px;
+  justify-content: center;
+}
+
+.controls {
+  grid-column: span 4;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.control-btn {
+  padding: 5px 10px;
+  background-color: #8b6f47;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.control-btn:hover {
+  background-color: #a67c52;
+}
+
+.skill {
+  background-color: #333333;
+  border: 2px solid #5a5a5a;
+  border-radius: 3px;
+  padding: 8px 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: background-color 0.2s;
+  width: 80px;
+  height: 81px; /* Fixed height for all skill boxes */
+  box-sizing: border-box;
+  justify-content: space-between;
+  margin: 0 auto;
+}
+
+.skill:hover {
+  background-color: #3a3a3a;
+}
+
+.skill-name {
+  font-size: 10px;
+  margin-bottom: 1px;
+  text-align: center;
+  width: 100%;
+  height: 44px; /* Slightly increased height for skill name area */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0.9;
+  padding: 0 5px;
+  text-shadow: 1px 1px 1px #000, -1px -1px 1px #000, 1px -1px 1px #000, -1px 1px 1px #000;
+}
+
+.skill-icon {
+  font-size: 18px;
+  margin: 1px 0;
+  transition: transform 0.2s;
+  text-shadow: 1px 1px 1px #000, -1px -1px 1px #000, 1px -1px 1px #000, -1px 1px 1px #000;
+}
+
+.skill-level {
+  font-weight: bold;
+  font-size: 14px;
+  color: #ffd700;
+  cursor: pointer;
+  text-shadow: 1px 1px 1px #000, -1px -1px 1px #000, 1px -1px 1px #000, -1px 1px 1px #000;
+}
+
+.total {
+  grid-column: span 4;
+  text-align: center;
+  margin-top: 6px;
+  font-weight: bold;
+  color: #ffd700;
+  font-size: 12px;
+}
+
+/* Tier colors for skill icons */
+.tier-iron {
+  color: #a8a8a8;
+}
+
+.tier-steel {
+  color: #b5b5b5;
+}
+
+.tier-silver {
+  color: #c0c0c0;
+}
+
+.tier-gold {
+  color: #ffd700;
+}
+
+.tier-sapphire {
+  color: #0f52ba;
+}
+
+.tier-emerald {
+  color: #50c878;
+}
+
+.tier-ruby {
+  color: #e0115f;
+}
+
+.tier-diamond {
+  color: #b9f2ff;
+  text-shadow: 0 0 3px rgba(255,255,255,0.5);
+}
+
+/* Animation for level up */
+.level-up {
+  animation: level-up-anim 0.3s ease;
+}
+
+@keyframes level-up-anim {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+
+/* Settings tab */
+.settings-section {
+  background-color: #3c3c3c;
+  border-radius: 5px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.setting-item {
+  margin-bottom: 15px;
+}
+
+.setting-item label {
+  display: block;
+  margin-bottom: 5px;
+  color: #cccccc;
+}
+
+.setting-item input, .setting-item select {
+  width: 100%;
+  padding: 8px;
+  background-color: #2c2c2c;
+  border: 1px solid #4c4c4c;
+  border-radius: 3px;
+  color: white;
+}
+
+.setting-item button {
+  padding: 5px 10px;
+  background-color: #8b6f47;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-top: 5px;
+}
+
+.danger-btn {
+  background-color: #aa3333;
+}
+
+.danger-btn:hover {
+  background-color: #c0392b;
+}
+
+.logout-btn {
+  background-color: #f39c12;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+.logout-btn:hover {
+  background-color: #e67e22;
+}
+
+/* Color picker styles */
+.color-picker {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+  max-width: 320px;
+}
+
+.color-option {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid transparent;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.color-option.active {
+  border-color: #ffffff;
+  transform: scale(1.15);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.color-option.active::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
+}
+
+/* Emote Grid Styles */
+.emote-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 8px;
+  margin-top: 15px;
+  max-width: 320px;
+}
+
+.emote-button {
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #444;
+  border: 2px solid #666;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 20px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.emote-button:hover {
+  background-color: #555;
+  border-color: #8b6f47;
+  transform: scale(1.1);
+  box-shadow: 0 0 8px rgba(139, 111, 71, 0.3);
+}
+
+.emote-button:active {
+  transform: scale(0.95);
+  background-color: #8b6f47;
+}
+
+/* Responsive adjustments */
+@media (min-width: 1600px) {
+  .game-container {
+    max-width: 1600px;
+  }
+}
+
+@media (max-width: 1400px) {
+  .game-container {
+    max-width: 100%;
+    padding: 10px;
+  }
+  
+  .main-content {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+  
+  .game-area {
+    min-width: auto;
+    overflow: auto;
+  }
+  
+  .tabs {
+    justify-content: center;
+  }
+  
+  .tab {
+    padding: 6px 8px;
+    font-size: 12px;
+    min-width: 70px;
+  }
+  
+  .skill-ui {
+    grid-template-columns: repeat(2, 90px);
+    gap: 5px;
+  }
+  
+  .controls {
+    grid-column: span 2;
+  }
+  
+  .total {
+    grid-column: span 2;
+  }
+  
+  .color-picker {
+    grid-template-columns: repeat(4, 1fr);
+    max-width: 200px;
+  }
+  
+  .emote-grid {
+    grid-template-columns: repeat(4, 1fr);
+    max-width: 200px;
+  }
+  
+  .emote-button {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+}
+
+/* ------------------ COMBAT SKILLS ------------------ */
+.skill[data-skill="attack"] {
+  background: linear-gradient(to bottom, rgba(170, 0, 0, 0.4), rgba(170, 0, 0, 0.4) 50%, #333333);
+}
+.skill[data-skill="magic"] {
+  background: linear-gradient(to bottom, rgba(0, 100, 255, 0.4), rgba(0, 100, 255, 0.4) 50%, #333333);
+}
+.skill[data-skill="ranged"] {
+  background: linear-gradient(to bottom, rgba(0, 120, 0, 0.4), rgba(0, 120, 0, 0.4) 50%, #333333);
+}
+.skill[data-skill="blasting"] {
+  background: linear-gradient(to bottom, rgba(140, 0, 255, 0.4), rgba(140, 0, 255, 0.4) 50%, #333333);
+}
+.skill[data-skill="defence"] {
+  background: linear-gradient(to bottom, rgba(27, 38, 201, 0.4), rgba(27, 38, 201, 0.4) 50%, #333333);
+}
+.skill[data-skill="hitpoints"] {
+  background: linear-gradient(to bottom, rgba(255, 57, 57, 0.4), rgba(255, 57, 57, 0.4) 50%, #333333);
+}
+.skill[data-skill="prayer"] {
+  background: linear-gradient(to bottom, rgba(254, 255, 193, 0.45), rgba(254, 255, 193, 0.45) 50%, #333333);
+}
+.skill[data-skill="slayer"] {
+  background: linear-gradient(to bottom, rgba(95, 3, 19, 0.4), rgba(95, 3, 19, 0.4) 50%, #333333);
+}
+
+/* ------------------ GATHERING SKILLS ------------------ */
+.skill[data-skill="mining"] {
+  background: linear-gradient(to bottom, rgba(75, 75, 110, 0.4), rgba(75, 75, 110, 0.4) 50%, #333333);
+}
+.skill[data-skill="fishing"] {
+  background: linear-gradient(to bottom, rgba(0, 150, 200, 0.4), rgba(0, 150, 200, 0.4) 50%, #333333);
+}
+.skill[data-skill="harvesting"] {
+  background: linear-gradient(to bottom, rgba(80, 120, 40, 0.45), rgba(80, 120, 40, 0.45) 50%, #333333);
+}
+.skill[data-skill="woodcutting"] {
+  background: linear-gradient(to bottom, rgba(118, 84, 47, 0.45), rgba(118, 84, 47, 0.45) 50%, #333333);
+}
+.skill[data-skill="digging"] {
+  background: linear-gradient(to bottom, rgba(148, 87, 50, 0.45), rgba(148, 87, 50, 0.45) 50%, #333333);
+}
+
+/* ------------------ ARTISAN SKILLS ------------------ */
+.skill[data-skill="smithing"] {
+  background: linear-gradient(to bottom, rgba(65, 44, 80, 0.5), rgba(65, 44, 80, 0.5) 50%, #333333);
+}
+.skill[data-skill="masonry"] {
+  background: linear-gradient(to bottom, rgba(108, 148, 165, 0.4), rgba(108, 148, 165, 0.4) 50%, #333333);
+}
+.skill[data-skill="cooking"] {
+  background: linear-gradient(to bottom, rgba(200, 80, 80, 0.4), rgba(200, 80, 80, 0.4) 50%, #333333);
+}
+.skill[data-skill="fletching"] {
+  background: linear-gradient(to bottom, rgba(159, 228, 102, 0.4), rgba(159, 228, 102, 0.4) 50%, #333333);
+}
+.skill[data-skill="apothecary"] {
+  background: linear-gradient(to bottom, rgba(0, 180, 80, 0.4), rgba(0, 180, 80, 0.4) 50%, #333333);
+}
+.skill[data-skill="crafting"] {
+  background: linear-gradient(to bottom, rgba(155, 172, 204, 0.45), rgba(155, 172, 204, 0.45) 50%, #333333);
+}
+.skill[data-skill="candlemaking"] {
+  background: linear-gradient(to bottom, rgba(247, 159, 29, 0.45), rgba(247, 159, 29, 0.45) 50%, #333333);
+}
+.skill[data-skill="painting"] {
+  background: linear-gradient(to bottom, rgba(255, 70, 184, 0.4), rgba(255, 70, 184, 0.4) 50%, #333333);
+}
+.skill[data-skill="brewing"] {
+  background: linear-gradient(to bottom, rgba(204, 102, 0, 0.45), rgba(204, 102, 0, 0.45) 50%, #333333);
+}
+.skill[data-skill="scribing"] {
+  background: linear-gradient(to bottom, rgba(192, 138, 255, 0.4), rgba(192, 138, 255, 0.4) 50%, #333333);
+}
+.skill[data-skill="confectionery"] {
+  background: linear-gradient(to bottom, rgba(243, 127, 152, 0.4), rgba(243, 127, 152, 0.4) 50%, #333333);
+}
+.skill[data-skill="tailoring"] {
+  background: linear-gradient(to bottom, rgba(116, 42, 177, 0.3), rgba(116, 42, 177, 0.3) 50%, #333333);
+}
+.skill[data-skill="bonecarving"] {
+  background: linear-gradient(to bottom, rgba(250, 245, 220, 0.4), rgba(250, 245, 220, 0.4) 50%, #333333);
+}
+.skill[data-skill="pottery"] {
+  background: linear-gradient(to bottom, rgba(255, 139, 72, 0.4), rgba(255, 139, 72, 0.4) 50%, #333333);
+}
+
+/* ------------------ SUPPORT SKILLS ------------------ */
+.skill[data-skill="thieving"] {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45) 50%, #333333);
+}
+.skill[data-skill="alchemy"] {
+  background: linear-gradient(to bottom, rgba(255, 229, 113, 0.5), rgba(255, 229, 113, 0.5) 50%, #333333);
+}
+.skill[data-skill="creation"] {
+  background: linear-gradient(to bottom, rgba(255, 255, 70, 0.4), rgba(255, 255, 70, 0.4) 50%, #333333);
+}
+.skill[data-skill="delivery"] {
+  background: linear-gradient(to bottom, rgba(0, 180, 180, 0.4), rgba(0, 180, 180, 0.4) 50%, #333333);
+}
+.skill[data-skill="ranching"] {
+  background: linear-gradient(to bottom, rgba(230, 180, 130, 0.4), rgba(230, 180, 130, 0.4) 50%, #333333);
+}
+.skill[data-skill="knowledge"] {
+  background: linear-gradient(to bottom, rgba(50, 50, 200, 0.4), rgba(50, 50, 200, 0.4) 50%, #333333);
+}
+.skill[data-skill="diplomacy"] {
+  background: linear-gradient(to bottom, rgba(80, 110, 200, 0.45), rgba(80, 110, 200, 0.45) 50%, #333333);
+}
+.skill[data-skill="engineering"] {
+  background: linear-gradient(to bottom, rgba(65, 105, 125, 0.5), rgba(65, 105, 125, 0.5) 50%, #333333);
+}
+.skill[data-skill="taming"] {
+  background: linear-gradient(to bottom, rgba(52, 240, 124, 0.4), rgba(52, 240, 124, 0.4) 50%, #333333);
+}
+.skill[data-skill="dracology"] {
+  background: linear-gradient(to bottom, rgba(255, 94, 121, 0.5), rgba(255, 94, 121, 0.5) 50%, #333333);
+}
+
+/* ------------------ PENDING SKILLS ------------------ */
+.skill[data-skill="apiary"] {
+  background: linear-gradient(to bottom, rgba(255, 229, 113, 0.5), rgba(255, 229, 113, 0.5) 50%, #333333);
+}
+
+/* Map Editor Styles */
+.map-editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 800px;
+}
+
+.map-editor-toolbar {
+  display: flex;
+  gap: 20px;
+  padding: 10px;
+  background-color: #2a2a2a;
+  border-bottom: 2px solid #555;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.tile-palette {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.palette-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.palette-section h4 {
+  margin: 0;
+  font-size: 12px;
+  color: #ccc;
+  text-align: center;
+}
+
+.palette-section .tile-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  max-width: 200px;
+}
+
+.tile-button {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #444;
+  border: 2px solid #666;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.tile-button:hover {
+  background-color: #555;
+  border-color: #777;
+  transform: scale(1.1);
+}
+
+.tile-button.active {
+  background-color: #8b6f47;
+  border-color: #a67c52;
+  box-shadow: 0 0 8px rgba(139, 111, 71, 0.5);
+}
+
+.editor-controls {
+  display: flex;
+  gap: 15px;
+  flex: 1;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+}
+
+.control-group h4 {
+  margin: 0;
+  font-size: 12px;
+  color: #ccc;
+}
+
+.editor-btn {
+  padding: 6px 12px;
+  background-color: #555;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.editor-btn:hover {
+  background-color: #666;
+}
+
+.editor-btn.primary {
+  background-color: #8b6f47;
+}
+
+.editor-btn.primary:hover {
+  background-color: #a67c52;
+}
+
+.map-editor-canvas-container {
+  flex: 1;
+  overflow: auto;
+  background-color: #1a1a1a;
+  position: relative;
+  min-height: 500px;
+}
+
+.map-editor-canvas {
+  position: relative;
+  margin: 10px;
+  background-color: #5a8c3e;
+  border: 2px solid #444;
+  border-radius: 4px;
+  cursor: crosshair;
+  min-width: 1600px;
+  min-height: 1200px;
+}
+
+.editor-tile {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: background-color 0.1s;
+}
+
+.editor-tile:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.editor-tile.obstacle {
+  background-color: #654321;
+}
+
+.editor-tile.water {
+  background-color: #2196F3;
+}
+
+.editor-tile.object {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive adjustments for map editor */
+@media (max-width: 1024px) {
+  .map-editor-toolbar {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .tile-palette {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .editor-controls {
+    justify-content: center;
+    gap: 10px;
+  }
+  
+  .map-editor-canvas {
+    min-width: 1200px;
+    min-height: 900px;
+  }
+}
+
+@media (max-width: 768px) {
+  .map-editor-container {
+    max-height: 600px;
+  }
+  
+  .map-editor-canvas {
+    min-width: 800px;
+    min-height: 600px;
+  }
+  
+  .palette-section .tile-grid {
+    max-width: 150px;
+  }
+  
+  .tile-button {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+  
+  .editor-tile {
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+  }
+}
+
+/* Chat System Styles */
+.chat-container {
+  background-color: #2c2c2c;
+  border-top: 2px solid #555;
+  display: flex;
+  flex-direction: column;
+  height: 200px;
+  flex-shrink: 0;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  background-color: #1a1a1a;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ffffff;
+  border: 1px solid #444;
+  scroll-behavior: smooth;
+}
+
+.chat-message {
+  margin-bottom: 2px;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.chat-message.system {
+  color: #ffff00;
+}
+
+.chat-message.game {
+  color: #ff6600;
+}
+
+.chat-message.info {
+  color: #0099ff;
+}
+
+.chat-message.success {
+  color: #00ff00;
+}
+
+.chat-message.warning {
+  color: #ffaa00;
+}
+
+.chat-message.error {
+  color: #ff0000;
+}
+
+.chat-message.player {
+  color: #ffffff;
+}
+
+.chat-message .timestamp {
+  color: #888888;
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+.chat-input-container {
+  display: flex;
+  background-color: #2c2c2c;
+  border-top: 1px solid #444;
+  padding: 4px;
+}
+
+#chat-input {
+  flex: 1;
+  background-color: #1a1a1a;
+  border: 1px solid #444;
+  color: #ffffff;
+  padding: 6px 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  outline: none;
+  border-radius: 0;
+}
+
+#chat-input:focus {
+  border-color: #8b6f47;
+  background-color: #222222;
+  box-shadow: 0 0 5px rgba(139, 111, 71, 0.5);
+}
+
+/* Visual indication when chat is active */
+.chat-active .chat-input-container {
+  background-color: #3a3a3a;
+  box-shadow: 0 0 10px rgba(139, 111, 71, 0.3);
+}
+
+.chat-active #chat-input {
+  border-color: #8b6f47;
+  background-color: #222222;
+}
+
+.chat-send-btn {
+  background-color: #8b6f47;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-left: 4px;
+  transition: background-color 0.2s;
+}
+
+.chat-send-btn:hover {
+  background-color: #a67c52;
+}
+
+.chat-send-btn:active {
+  background-color: #6b5839;
+}
+
+/* Custom scrollbar for chat */
+.chat-messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: #2c2c2c;
+  border-radius: 4px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Responsive chat adjustments */
+@media (max-width: 768px) {
+  .chat-container {
+    height: 150px;
+  }
+  
+  .chat-messages {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  
+  #chat-input {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+  
+  .chat-send-btn {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+}
+
+/* Speech Bubble Styles */
+.speech-bubble {
+  background-color: rgba(255, 255, 255, 0.95); /* More opaque white background */
+  color: #000000;
+  border: 2px solid #333333;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: bold;
+  max-width: 200px;
+  word-wrap: break-word;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  animation: speechBubbleAppear 0.3s ease-out;
+}
+
+.speech-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid #333333;
+}
+
+.speech-bubble::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid rgba(255, 255, 255, 0.95); /* Match the bubble background */
+  margin-top: -2px;
+}
+
+/* Override for online player bubbles to have white background too */
+.online-player-bubble {
+  background-color: rgba(255, 255, 255, 0.95) !important; /* White background for other players too */
+  border-color: #333333 !important; /* Consistent border color */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important; /* Consistent shadow */
+}
+
+.online-player-bubble::before {
+  border-top-color: rgba(255, 255, 255, 0.95) !important; /* Match the white background */
+}
+
+@keyframes speechBubbleAppear {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+/* Responsive speech bubble adjustments */
+@media (max-width: 768px) {
+  .speech-bubble {
+    font-size: 12px;
+    padding: 6px 10px;
+    max-width: 150px;
+  }
+}
+
+/* Online Player Styles - Match main player character exactly */
+.online-player {
+  /* Ensure consistent appearance with main player */
+  box-sizing: border-box;
+  /* Remove flex display that might cause extra visual elements */
+  display: block;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  
+  /* Default transitions for smooth movement when not stationary */
+  transition: left 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: left, top;
+  backface-visibility: hidden;
+  transform: translateZ(0); /* Force GPU layer for smooth sub-pixel positioning */
+  
+  /* Ensure no extra content or pseudo-elements */
+  content: none;
+  overflow: hidden;
+  
+  /* Consistent z-index with other game elements */
+  position: absolute;
+}
+
+/* Stationary players should have no transitions to prevent floating/bobbing and render like objects */
+.online-player[data-is-stationary="true"] {
+  transition: none !important;
+  will-change: auto;
+  /* Integrate with object positioning system */
+  pointer-events: auto;
+}
+
+/* Players that are animating should have no CSS transitions to prevent conflicts */
+.online-player[data-is-animating="true"] {
+  transition: none !important;
+  will-change: left, top;
+  /* Keep GPU acceleration during animations */
+  transform: translateZ(0);
+}
+
+/* Enhanced animation smoothness for moving players */
+.online-player[data-is-stationary="false"]:not([data-is-animating="true"]) {
+  /* Smooth transitions only when actively moving and not animating */
+  transition: left 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: left, top;
+  /* Ensure sub-pixel rendering for ultra-smooth movement */
+  transform: translateZ(0);
+}
+
+/* Remove any hover animations or scaling effects that could interfere with camera movement */
+.online-player:hover {
+  transform: translateZ(0) !important; /* Maintain GPU acceleration, no scaling */
+  animation: none !important;
+}
+
+/* Direction indicators for online players - match main player exactly */
+.online-player .direction-indicator {
+  transition: all 0.2s ease;
+  box-shadow: none; /* Remove any extra shadows */
+  will-change: top, left;
+  /* Ensure direction indicator doesn't interfere with positioning */
+  pointer-events: none;
+}
+
+/* Username labels consistent styling */
+.online-player-username {
+  font-family: 'Verdana', sans-serif !important;
+  letter-spacing: 0.5px;
+  transition: background-color 0.2s ease;
+  /* Ensure username doesn't interfere with positioning */
+  pointer-events: none;
+}
+
+/* Enhanced layer element integration for object-style rendering */
+.online-player.layer-element {
+  /* When players are treated as layer elements (stationary), ensure perfect object integration */
+  z-index: 11; /* Slightly above main player but below interactive objects */
+}
+
+/* Smooth animation performance optimizations */
+.online-player {
+  /* Use hardware acceleration for better performance */
+  transform: translateZ(0);
+  /* Optimize for animations */
+  image-rendering: crisp-edges;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Cooking Interface Styles */
+.cooking-interface {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #2a1810 0%, #3a2418 50%, #2a1810 100%);
+  border: 3px solid #8b4513;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  min-width: 450px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  z-index: 1500;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.cooking-header {
+  background: linear-gradient(135deg, #8b4513 0%, #a0522d 50%, #8b4513 100%);
+  color: #fff;
+  padding: 15px 20px;
+  border-bottom: 2px solid #654321;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.cooking-header h3 {
+  margin: 0;
+  font-size: 1.4em;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cooking-header h3::before {
+  content: '🔥';
+  font-size: 1.2em;
+}
+
+.cooking-header .close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.cooking-header .close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.cooking-content {
+  padding: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.cooking-recipes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cooking-recipe {
+  background: linear-gradient(135deg, #3a2418 0%, #4a3020 50%, #3a2418 100%);
+  border: 2px solid #654321;
+  border-radius: 8px;
+  padding: 15px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.cooking-recipe:hover {
+  border-color: #8b4513;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.recipe-info {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+  color: #fff;
+}
+
+.recipe-name {
+  font-weight: bold;
+  font-size: 1.1em;
+  color: #ffd700;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.recipe-level {
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: bold;
+  text-align: center;
+  min-width: 60px;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.recipe-xp {
+  background: linear-gradient(135deg, #50c878 0%, #3ea050 100%);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: bold;
+  text-align: center;
+  min-width: 60px;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.recipe-quantity {
+  background: linear-gradient(135deg, #ff8c00 0%, #e67300 100%);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: bold;
+  text-align: center;
+  min-width: 80px;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.recipe-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.recipe-actions button {
+  background: linear-gradient(135deg, #8b4513 0%, #a0522d 50%, #8b4513 100%);
+  color: #fff;
+  border: 1px solid #654321;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.9em;
+  transition: all 0.3s ease;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.recipe-actions button:hover {
+  background: linear-gradient(135deg, #a0522d 0%, #b8651e 50%, #a0522d 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+.recipe-actions button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.no-recipes {
+  text-align: center;
+  color: #ccc;
+  font-style: italic;
+  padding: 30px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px dashed #666;
+  border-radius: 8px;
+}
+
+/* Cooking Status Styles */
+.cooking-status {
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border-top: 2px solid #654321;
+}
+
+.cooking-progress {
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid #654321;
+  border-radius: 20px;
+  height: 30px;
+  margin-bottom: 15px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #000000 0%, #000000 50%, #000000 100%);
+  border-radius: 18px;
+  transition: width 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+  animation: progress-shine 2s ease-in-out infinite;
+}
+
+@keyframes progress-shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.cooking-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  color: #fff;
+  font-weight: bold;
+}
+
+.cooking-info span {
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 6px;
+  border: 1px solid #654321;
+}
+
+.cancel-cooking-btn {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 50%, #dc3545 100%);
+  color: #fff;
+  border: 1px solid #bd2130;
+  border-radius: 6px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1em;
+  transition: all 0.3s ease;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  width: 100%;
+}
+
+.cancel-cooking-btn:hover {
+  background: linear-gradient(135deg, #e4606d 0%, #d43c4a 50%, #e4606d 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+.cancel-cooking-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Scrollbar for cooking interface */
+.cooking-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.cooking-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.cooking-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%);
+  border-radius: 4px;
+}
+
+.cooking-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #a0522d 0%, #b8651e 100%);
+}
+
+/* Animation for cooking interface appearance */
+.cooking-interface {
+  animation: cookingInterfaceAppear 0.3s ease-out;
+}
+
+@keyframes cookingInterfaceAppear {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Mobile responsiveness for cooking interface */
+@media (max-width: 768px) {
+  .cooking-interface {
+    min-width: 90vw;
+    max-width: 95vw;
+    max-height: 90vh;
+  }
+  
+  .recipe-info {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    text-align: center;
+  }
+  
+  .recipe-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+/* Allow scrolling within settings tab */
+#settings-tab {
+  overflow-y: auto;
+}
+
+/* Secondary tab row below content */
+.secondary-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  background-color: #2c2c2c;
+  border-top: 3px solid #8b6f47;
+  gap: 1px;
+}

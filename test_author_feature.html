@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Author Feature Test - WebscapeRPG</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #2a2a2a;
+            color: #fff;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background-color: #3a3a3a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #555;
+        }
+        .test-item {
+            background-color: #4a4a4a;
+            border: 1px solid #666;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .test-item:hover {
+            background-color: #5a5a5a;
+        }
+        .item-icon {
+            font-size: 24px;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .item-name {
+            font-weight: bold;
+            color: #f0f0f0;
+        }
+        .item-description {
+            color: #ccc;
+            margin: 5px 0;
+        }
+        .item-author {
+            color: #daa520;
+            font-style: italic;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        .tooltip {
+            position: fixed;
+            background-color: #1a1a1a;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            z-index: 1001;
+            max-width: 200px;
+            font-size: 12px;
+            pointer-events: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        .tooltip .item-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .tooltip .item-description {
+            color: #ccc;
+        }
+        .tooltip .item-author {
+            color: #daa520;
+            font-style: italic;
+            margin-top: 4px;
+            font-size: 11px;
+        }
+        .instructions {
+            background-color: #2d4a3d;
+            border: 1px solid #4a7c59;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .feature-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #555;
+        }
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        .checkmark {
+            color: #4a7c59;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Scribing Author Feature Test</h1>
+        
+        <div class="instructions">
+            <h3>✨ New Author Feature Implementation</h3>
+            <p>The Scribing skill now includes an author attribution system! Here's what's been implemented:</p>
+            <ul class="feature-list">
+                <li><span class="checkmark">✓</span> Books completed through scribing now include the author's name</li>
+                <li><span class="checkmark">✓</span> Author names are displayed in item tooltips when hovering</li>
+                <li><span class="checkmark">✓</span> Author information is preserved when items are dropped or banked</li>
+                <li><span class="checkmark">✓</span> Custom book names show "(by AuthorName)" format</li>
+                <li><span class="checkmark">✓</span> Tooltips show "Written by: AuthorName" in golden italic text</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>📖 Sample Authored Books</h3>
+            <p>Hover over these items to see the author tooltip in action:</p>
+            
+            <div class="test-item" data-item='{"id":"beginner_cookbook","name":"Beginner Cookbook (by PlayerOne)","description":"A collection of simple cooking recipes. Written and signed by PlayerOne.","author":"PlayerOne"}'>
+                <span class="item-icon">📚</span>
+                <div class="item-name">Beginner Cookbook (by PlayerOne)</div>
+                <div class="item-description">A collection of simple cooking recipes. Written and signed by PlayerOne.</div>
+                <div class="item-author">Written by: PlayerOne</div>
+            </div>
+
+            <div class="test-item" data-item='{"id":"woodcutting_guide","name":"Woodcutting Guide (by TreeMaster)","description":"Essential techniques for felling trees efficiently. Written and signed by TreeMaster.","author":"TreeMaster"}'>
+                <span class="item-icon">📚</span>
+                <div class="item-name">Woodcutting Guide (by TreeMaster)</div>
+                <div class="item-description">Essential techniques for felling trees efficiently. Written and signed by TreeMaster.</div>
+                <div class="item-author">Written by: TreeMaster</div>
+            </div>
+
+            <div class="test-item" data-item='{"id":"combat_tactics","name":"Combat Tactics (by WarriorKing)","description":"Strategic approaches to combat and warfare. Written and signed by WarriorKing.","author":"WarriorKing"}'>
+                <span class="item-icon">📚</span>
+                <div class="item-name">Combat Tactics (by WarriorKing)</div>
+                <div class="item-description">Strategic approaches to combat and warfare. Written and signed by WarriorKing.</div>
+                <div class="item-author">Written by: WarriorKing</div>
+            </div>
+
+            <div class="test-item" data-item='{"id":"ancient_lore","name":"Ancient Lore (by LoreKeeper)","description":"Lost knowledge from forgotten civilizations. Written and signed by LoreKeeper.","author":"LoreKeeper"}'>
+                <span class="item-icon">📚</span>
+                <div class="item-name">Ancient Lore (by LoreKeeper)</div>
+                <div class="item-description">Lost knowledge from forgotten civilizations. Written and signed by LoreKeeper.</div>
+                <div class="item-author">Written by: LoreKeeper</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📜 Sample Authored Scrolls</h3>
+            <p>Scrolls also support the author feature:</p>
+            
+            <div class="test-item" data-item='{"id":"basic_scroll","name":"Basic Scroll (by ScribeNovice)","description":"A simple scroll with basic writing. Written and signed by ScribeNovice.","author":"ScribeNovice"}'>
+                <span class="item-icon">📜</span>
+                <div class="item-name">Basic Scroll (by ScribeNovice)</div>
+                <div class="item-description">A simple scroll with basic writing. Written and signed by ScribeNovice.</div>
+                <div class="item-author">Written by: ScribeNovice</div>
+            </div>
+
+            <div class="test-item" data-item='{"id":"mystic_charter","name":"Mystic Charter (by MysticMage)","description":"A mystical charter infused with magical energy. Written and signed by MysticMage.","author":"MysticMage"}'>
+                <span class="item-icon">📜</span>
+                <div class="item-name">Mystic Charter (by MysticMage)</div>
+                <div class="item-description">A mystical charter infused with magical energy. Written and signed by MysticMage.</div>
+                <div class="item-author">Written by: MysticMage</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 Technical Implementation</h3>
+            <p>The author feature has been implemented with the following changes:</p>
+            <ul class="feature-list">
+                <li><span class="checkmark">✓</span> <strong>completeBookWriting()</strong> - Updated to add author information to completed books</li>
+                <li><span class="checkmark">✓</span> <strong>showTooltip()</strong> - Enhanced to display author information in tooltips</li>
+                <li><span class="checkmark">✓</span> <strong>Bank tooltips</strong> - Updated to preserve and display author information</li>
+                <li><span class="checkmark">✓</span> <strong>Floor items</strong> - Author information preserved when items are dropped</li>
+                <li><span class="checkmark">✓</span> <strong>CSS styling</strong> - Added golden italic styling for author information</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Simple tooltip functionality for demonstration
+        let currentTooltip = null;
+
+        function showTooltip(event, itemData) {
+            hideTooltip();
+            
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            tooltip.innerHTML = `
+                <div class="item-name">${itemData.name}</div>
+                <div class="item-description">${itemData.description}</div>
+                ${itemData.author ? `<div class="item-author">Written by: ${itemData.author}</div>` : ''}
+            `;
+            
+            tooltip.style.left = `${event.pageX + 10}px`;
+            tooltip.style.top = `${event.pageY - 10}px`;
+            
+            document.body.appendChild(tooltip);
+            currentTooltip = tooltip;
+        }
+
+        function hideTooltip() {
+            if (currentTooltip) {
+                currentTooltip.remove();
+                currentTooltip = null;
+            }
+        }
+
+        // Add event listeners to test items
+        document.querySelectorAll('.test-item').forEach(item => {
+            const itemData = JSON.parse(item.getAttribute('data-item'));
+            
+            item.addEventListener('mouseenter', (e) => {
+                showTooltip(e, itemData);
+            });
+            
+            item.addEventListener('mouseleave', () => {
+                hideTooltip();
+            });
+            
+            item.addEventListener('mousemove', (e) => {
+                if (currentTooltip) {
+                    currentTooltip.style.left = `${e.pageX + 10}px`;
+                    currentTooltip.style.top = `${e.pageY - 10}px`;
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

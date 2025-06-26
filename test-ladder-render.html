@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ladder Rendering Test - WebscapeRPG</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1, h2 {
+            color: #8b6f47;
+        }
+        .test-button {
+            background: #8b6f47;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        .test-button:hover {
+            background: #a67c52;
+        }
+        .status {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #27ae60;
+        }
+        .warning {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #f39c12;
+        }
+        code {
+            background: #3a3a3a;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🪜 Ladder Rendering Test</h1>
+        
+        <div class="status">
+            <h2>✅ Ladder System Status</h2>
+            <ul>
+                <li><strong>In-Game Ladders:</strong> Display as 🪜 (ladder only, no arrows)</li>
+                <li><strong>Map Editor Ladders:</strong> Display as 🪜⬇️ and 🪜⬆️ (with directional arrows)</li>
+                <li><strong>Functionality:</strong> Clicking ladders in-game triggers level transitions</li>
+                <li><strong>Placement:</strong> Ladders are placed on the Interactive Objects layer</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <h3>🔧 How to Test Ladder Rendering</h3>
+            <ol>
+                <li><strong>Open Map Editor:</strong> Use the map editor to place ladder objects</li>
+                <li><strong>Place Ladders:</strong>
+                    <ul>
+                        <li>On Surface level: Place <code>ladder_down</code> objects</li>
+                        <li>On Underground level: Place <code>ladder_up</code> objects</li>
+                        <li>Place them at matching coordinates for transitions</li>
+                    </ul>
+                </li>
+                <li><strong>Save & Apply:</strong> Save the map and apply it to the game</li>
+                <li><strong>Test In-Game:</strong> Verify ladders appear as 🪜 without arrows</li>
+                <li><strong>Test Functionality:</strong> Click ladders to test level transitions</li>
+            </ol>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="test-button" onclick="window.open('mapeditor.html', '_blank')">
+                🗺️ Open Map Editor
+            </button>
+            <button class="test-button" onclick="window.open('index.html', '_blank')">
+                🎮 Test In Game
+            </button>
+            <button class="test-button" onclick="testLadderPlacement()">
+                🪜 Quick Ladder Test
+            </button>
+        </div>
+
+        <div class="status">
+            <h3>🔍 Technical Details</h3>
+            <p><strong>Fixed Issues:</strong></p>
+            <ul>
+                <li>Ladders now render in-game (previously missing from world.js object definitions)</li>
+                <li>Removed directional arrows from in-game display for cleaner appearance</li>
+                <li>Map editor retains arrows for better visual distinction during editing</li>
+                <li>Ladders are properly classified as interactive objects</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <h3>📋 Expected Behavior</h3>
+            <p><strong>Map Editor:</strong></p>
+            <ul>
+                <li>🪜⬇️ - Ladder Down (surface to underground)</li>
+                <li>🪜⬆️ - Ladder Up (underground to surface)</li>
+            </ul>
+            <p><strong>In-Game:</strong></p>
+            <ul>
+                <li>🪜 - All ladders display as simple ladder emoji</li>
+                <li>Tooltip shows "Ladder Down" or "Ladder Up" on hover</li>
+                <li>Click functionality triggers level transitions</li>
+            </ul>
+        </div>
+
+        <script>
+            function testLadderPlacement() {
+                // Create a simple test map with ladders
+                const testMap = {
+                    version: '3.0',
+                    worldCols: 100,
+                    worldRows: 100,
+                    mapLevels: {
+                        surface: [
+                            // Terrain layer (water)
+                            Array(100).fill().map(() => Array(100).fill(3)),
+                            // Ground objects layer (empty)
+                            Array(100).fill().map(() => Array(100).fill(null)),
+                            // Interactive objects layer (with ladder)
+                            Array(100).fill().map((_, y) => Array(100).fill().map((__, x) => 
+                                (x === 50 && y === 50) ? 'ladder_down' : null
+                            )),
+                            // Decorative overlays layer (empty)
+                            Array(100).fill().map(() => Array(100).fill(null))
+                        ],
+                        underground: [
+                            // Terrain layer (black void)
+                            Array(100).fill().map(() => Array(100).fill(57)),
+                            // Ground objects layer (empty)
+                            Array(100).fill().map(() => Array(100).fill(null)),
+                            // Interactive objects layer (with ladder)
+                            Array(100).fill().map((_, y) => Array(100).fill().map((__, x) => 
+                                (x === 50 && y === 50) ? 'ladder_up' : null
+                            )),
+                            // Decorative overlays layer (empty)
+                            Array(100).fill().map(() => Array(100).fill(null))
+                        ]
+                    },
+                    itemSpawnConfigs: {},
+                    npcSpawnConfigs: {},
+                    createdAt: new Date().toISOString()
+                };
+
+                // Save test map to localStorage
+                localStorage.setItem('webscape_custom_map', JSON.stringify({
+                    grid: testMap.mapLevels.surface[0],
+                    objects: [
+                        { type: 'ladder_down', x: 50, y: 50, name: 'Ladder Down' }
+                    ],
+                    createdAt: new Date().toISOString()
+                }));
+
+                alert('Test map with ladder created! Open the game to see the ladder at position (50, 50).\n\nThe ladder should appear as 🪜 without arrows.');
+            }
+        </script>
+
+        <div style="text-align: center; margin: 30px 0; color: #888;">
+            <p>🔄 Status: Ladder rendering fixes applied</p>
+            <p>📅 Last Updated: December 2024</p>
+        </div>
+    </div>
+</body>
+</html> 

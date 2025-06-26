@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebscapeRPG - Underground Map Editor Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1, h2 {
+            color: #8b6f47;
+        }
+        .feature-list {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .feature-list ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .feature-list li {
+            background: #3a3a3a;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #8b6f47;
+        }
+        .feature-list li strong {
+            color: #d4af37;
+        }
+        .test-button {
+            background: #8b6f47;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        .test-button:hover {
+            background: #a67c52;
+        }
+        .instructions {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #8b6f47;
+        }
+        .note {
+            background: #4a4a4a;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗺️ WebscapeRPG Underground Map Editor System</h1>
+        
+        <div class="instructions">
+            <h2>🚀 New Features Added</h2>
+            <p>The map editor now supports multi-level editing with underground areas! Here's what's new:</p>
+        </div>
+
+        <div class="feature-list">
+            <ul>
+                <li>
+                    <strong>🌍 Multi-Level Map Support:</strong>
+                    The map editor now supports both Surface and Underground levels. You can switch between them using the new map level buttons.
+                </li>
+                <li>
+                    <strong>🏔️ Underground Level Editing:</strong>
+                    Edit underground maps with black void terrain as the default, perfect for caves and dungeons.
+                </li>
+                <li>
+                    <strong>🪜 Ladder Objects:</strong>
+                    Place ladder_down (🪜⬇️) on surface and ladder_up (🪜⬆️) underground to create transitions between levels.
+                </li>
+                <li>
+                    <strong>💾 Enhanced Map Format:</strong>
+                    Maps now save in version 3.0 format with full multi-level support while maintaining backward compatibility.
+                </li>
+                <li>
+                    <strong>📏 Fixed Map Size Loading:</strong>
+                    The editor now correctly preserves map dimensions when loading existing maps instead of resetting to 100x100.
+                </li>
+                <li>
+                    <strong>🎨 Level-Specific Terrain:</strong>
+                    Surface uses water terrain as default, underground uses black void terrain for atmospheric difference.
+                </li>
+            </ul>
+        </div>
+
+        <div class="note">
+            <h3>📋 How to Use the Underground System</h3>
+            <ol>
+                <li><strong>Open Map Editor:</strong> Click on <a href="mapeditor.html" target="_blank">mapeditor.html</a></li>
+                <li><strong>Switch Map Levels:</strong> Use the new "🌍 Surface" and "🏔️ Underground" buttons at the top of the toolbar</li>
+                <li><strong>Edit Each Level:</strong> Design your surface with water/grass terrain, then switch to underground for cave design</li>
+                <li><strong>Add Transitions:</strong> Place "ladder_down" objects on surface and "ladder_up" objects underground at matching coordinates</li>
+                <li><strong>Save & Test:</strong> Save your multi-level map and apply it to the game to test ladder transitions</li>
+            </ol>
+        </div>
+
+        <div class="feature-list">
+            <h3>🗂️ File Format Details</h3>
+            <ul>
+                <li>
+                    <strong>Version 3.0 Format:</strong>
+                    New maps use the mapLevels structure: <code>mapLevels.surface</code> and <code>mapLevels.underground</code>
+                </li>
+                <li>
+                    <strong>Backward Compatibility:</strong>
+                    Legacy maps automatically get a default underground level generated when loaded
+                </li>
+                <li>
+                    <strong>Map Size Preservation:</strong>
+                    worldCols and worldRows are now properly loaded and preserved from existing maps
+                </li>
+            </ul>
+        </div>
+
+        <div class="note">
+            <h3>🔧 Technical Implementation</h3>
+            <p>The underground system works by:</p>
+            <ul>
+                <li>Storing separate layer data for each map level (surface/underground)</li>
+                <li>Using currentMapLevel to track which level the player is on</li>
+                <li>Rendering only the current level's data to maintain player separation</li>
+                <li>Providing ladder objects that trigger level transitions</li>
+                <li>Maintaining consistent coordinates across levels for smooth transitions</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="test-button" onclick="window.open('mapeditor.html', '_blank')">
+                🗺️ Open Map Editor
+            </button>
+            <button class="test-button" onclick="window.open('index.html', '_blank')">
+                🎮 Test in Game
+            </button>
+        </div>
+
+        <div class="note">
+            <h3>✅ Key Benefits</h3>
+            <ul>
+                <li><strong>Expanded World Design:</strong> Create multi-level adventures with surface and underground areas</li>
+                <li><strong>Player Separation:</strong> Players on different levels can't see each other, creating distinct areas</li>
+                <li><strong>Seamless Transitions:</strong> Ladder-based movement between levels maintains immersion</li>
+                <li><strong>Visual Distinction:</strong> Different default terrains make each level feel unique</li>
+                <li><strong>Editor Integration:</strong> Full map editor support for designing both levels</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0; color: #888;">
+            <p>🔄 System Status: Underground Multi-Level System ACTIVE</p>
+            <p>📅 Last Updated: December 2024</p>
+        </div>
+    </div>
+</body>
+</html> 

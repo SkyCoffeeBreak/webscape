@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fallback Test - WebscapeRPG</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+    <div class="game-container">
+        <!-- Character Profile -->
+        <div class="character-profile" id="character-profile">
+            <div class="character-name" id="character-name">Adventurer</div>
+            <div class="character-info">
+                <div class="character-stats">
+                    Combat Level: <span id="combat-level" class="character-level">3</span>
+                </div>
+                <div class="character-stats">
+                    Total Level: <span id="total-level-header" class="character-level">31</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Game Area (Left) -->
+            <div class="game-area">
+                <div id="game-tab">
+                    <h2>Game World (Fallback Test)</h2>
+                    <div class="game-controls">
+                        <button class="game-btn" id="reset-world-btn">Reset World</button>
+                    </div>
+                    <!-- Game world will be initialized here -->
+                </div>
+            </div>
+            
+            <!-- Info Area (Right) -->
+            <div class="info-area">
+                <!-- Tab Navigation -->
+                <div class="tabs">
+                    <div class="tab active" data-tab="skills">Skills</div>
+                    <div class="tab" data-tab="inventory">Inventory</div>
+                    <div class="tab" data-tab="quests">Quests</div>
+                    <div class="tab" data-tab="settings">Settings</div>
+                </div>
+                
+                <!-- Minimal Skills Tab for testing -->
+                <div class="tab-content">
+                    <div class="tab-pane active" id="skills-tab">
+                        <div class="skill-ui">
+                            <p>Fallback script test - minimal UI</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load fallback script directly -->
+    <script src="js/fallback.js"></script>
+</body>
+</html> 

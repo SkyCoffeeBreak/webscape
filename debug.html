@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Debug - WebscapeRPG</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        #debug-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        #game-tab {
+            background-color: #e8e8e8;
+            padding: 20px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            min-height: 600px;
+        }
+        
+        .game-world {
+            border: 3px solid #8b6f47 !important;
+            border-radius: 5px !important;
+            background-color: #5a8c3e !important;
+            margin: 10px auto !important;
+            display: block !important;
+            position: relative !important;
+        }
+        
+        .player-character {
+            background-color: #3498db !important;
+            border-radius: 50% !important;
+            border: 2px solid #ffffff !important;
+            position: absolute !important;
+            z-index: 10 !important;
+        }
+        
+        #debug-info {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="debug-container">
+        <h1>World Module Debug</h1>
+        <div id="debug-info">Loading...</div>
+        <button onclick="testWorld()">Test World Initialization</button>
+        <button onclick="toggleInfo()">Toggle Debug Info</button>
+    </div>
+    
+    <div id="game-tab">
+        <h2>Game World Test Area</h2>
+        <!-- World will be created here -->
+    </div>
+
+    <script type="module">
+        import { initializeWorld, getPlayerPosition, getCameraPosition } from './js/modules/world.js';
+        
+        let debugInterval;
+        let worldElement;
+        
+        window.testWorld = function() {
+            try {
+                console.log('Starting world test...');
+                updateDebugInfo('Initializing world...\n');
+                
+                // Initialize the world
+                worldElement = initializeWorld();
+                updateDebugInfo('World initialized: ' + (worldElement ? 'SUCCESS' : 'FAILED') + '\n');
+                
+                if (worldElement) {
+                    updateDebugInfo('World element ID: ' + worldElement.id + '\n');
+                    updateDebugInfo('World element size: ' + worldElement.style.width + ' x ' + worldElement.style.height + '\n');
+                    updateDebugInfo('World element parent: ' + (worldElement.parentElement ? worldElement.parentElement.id : 'none') + '\n');
+                    
+                    // Check if player exists
+                    const player = document.getElementById('player-character');
+                    updateDebugInfo('Player element: ' + (player ? 'FOUND' : 'NOT FOUND') + '\n');
+                    
+                    if (player) {
+                        updateDebugInfo('Player style: ' + player.style.cssText + '\n');
+                    }
+                    
+                    // Test position functions
+                    const playerPos = getPlayerPosition();
+                    const cameraPos = getCameraPosition();
+                    updateDebugInfo('Player position: ' + JSON.stringify(playerPos) + '\n');
+                    updateDebugInfo('Camera position: ' + JSON.stringify(cameraPos) + '\n');
+                }
+                
+            } catch (error) {
+                console.error('World test error:', error);
+                updateDebugInfo('ERROR: ' + error.message + '\n' + error.stack + '\n');
+            }
+        };
+        
+        window.toggleInfo = function() {
+            if (debugInterval) {
+                clearInterval(debugInterval);
+                debugInterval = null;
+            } else {
+                debugInterval = setInterval(() => {
+                    if (worldElement) {
+                        const playerPos = getPlayerPosition();
+                        const cameraPos = getCameraPosition();
+                        document.getElementById('debug-info').textContent = 
+                            `Player: (${playerPos.x.toFixed(2)}, ${playerPos.y.toFixed(2)})\n` +
+                            `Camera: (${cameraPos.x.toFixed(2)}, ${cameraPos.y.toFixed(2)})\n` +
+                            `World element exists: ${!!worldElement}\n` +
+                            `World visible: ${worldElement.style.display !== 'none'}\n` +
+                            `Time: ${new Date().toLocaleTimeString()}`;
+                    }
+                }, 100);
+            }
+        };
+        
+        function updateDebugInfo(text) {
+            const debugInfo = document.getElementById('debug-info');
+            debugInfo.textContent += text;
+            debugInfo.scrollTop = debugInfo.scrollHeight;
+        }
+        
+        // Auto-start the test
+        setTimeout(() => {
+            testWorld();
+        }, 1000);
+    </script>
+</body>
+</html> 

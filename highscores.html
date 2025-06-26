@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebscapeRPG - Highscores</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&family=Noto+Emoji:wght@300..700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, 'Noto Color Emoji', 'Noto Emoji';
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            min-height: 100vh;
+            color: #ecf0f1;
+        }
+
+        .header {
+            background: rgba(44, 62, 80, 0.9);
+            padding: 20px 0;
+            text-align: center;
+            border-bottom: 3px solid #3498db;
+        }
+
+        .header h1 {
+            color: #f39c12;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .header p {
+            color: #bdc3c7;
+            font-size: 1.1em;
+        }
+
+        .nav-links {
+            margin-top: 15px;
+        }
+
+        .nav-links a {
+            color: #3498db;
+            text-decoration: none;
+            margin: 0 15px;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            background: rgba(52, 152, 219, 0.2);
+            color: #ecf0f1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .highscores-container {
+            background: rgba(52, 73, 94, 0.8);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .skill-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            background: rgba(44, 62, 80, 0.9);
+            border-bottom: 2px solid #34495e;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .skill-tab {
+            flex: 1;
+            min-width: 80px;
+            max-width: 120px;
+            padding: 12px 8px;
+            background: rgba(52, 73, 94, 0.6);
+            border: none;
+            border-right: 1px solid #34495e;
+            border-bottom: 1px solid #34495e;
+            color: #bdc3c7;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .skill-tab:hover {
+            background: rgba(41, 128, 185, 0.3);
+            color: #ecf0f1;
+        }
+
+        .skill-tab.active {
+            background: #2980b9;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .skill-icon {
+            font-size: 16px;
+            font-family: 'Noto Color Emoji', 'Noto Emoji', sans-serif;
+        }
+
+        .skill-name {
+            font-size: 10px;
+            line-height: 1.2;
+        }
+
+        .leaderboard-content {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .leaderboard-header {
+            text-align: center;
+            color: #f39c12;
+            margin-bottom: 20px;
+            padding: 15px 0;
+            border-bottom: 2px solid #34495e;
+            font-size: 1.5em;
+        }
+
+        .leaderboard-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            background: rgba(44, 62, 80, 0.6);
+            border-radius: 8px;
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .leaderboard-entry:hover {
+            background: rgba(44, 62, 80, 0.8);
+            transform: translateX(5px);
+        }
+
+        .leaderboard-entry:nth-child(2) { /* First entry (after header) */
+            border-left-color: #f1c40f;
+            background: rgba(241, 196, 15, 0.15);
+        }
+
+        .leaderboard-entry:nth-child(3) { /* Second entry */
+            border-left-color: #95a5a6;
+            background: rgba(149, 165, 166, 0.15);
+        }
+
+        .leaderboard-entry:nth-child(4) { /* Third entry */
+            border-left-color: #cd7f32;
+            background: rgba(205, 127, 50, 0.15);
+        }
+
+        .entry-rank {
+            color: #f39c12;
+            font-weight: bold;
+            min-width: 40px;
+            font-size: 16px;
+        }
+
+        .entry-player {
+            color: #ecf0f1;
+            flex: 1;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .entry-level {
+            color: #3498db;
+            font-weight: bold;
+            min-width: 80px;
+            text-align: right;
+            font-size: 16px;
+        }
+
+        .loading-message {
+            text-align: center;
+            color: #95a5a6;
+            padding: 60px 20px;
+            font-style: italic;
+            font-size: 18px;
+        }
+
+        .error-message {
+            text-align: center;
+            color: #e74c3c;
+            padding: 60px 20px;
+            font-size: 18px;
+        }
+
+        .refresh-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 20px auto;
+            display: block;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .skill-tabs {
+                max-height: 150px;
+            }
+
+            .skill-tab {
+                min-width: 60px;
+                max-width: 80px;
+                padding: 8px 4px;
+            }
+
+            .leaderboard-content {
+                padding: 15px;
+            }
+
+            .leaderboard-entry {
+                padding: 10px 12px;
+            }
+
+            .entry-rank, .entry-player, .entry-level {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏆 WebscapeRPG Highscores</h1>
+        <p>Top players across all skills</p>
+        <div class="nav-links">
+            <a href="splash.html">← Back to Main</a>
+            <a href="index.html">Play Game</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="highscores-container">
+            <div class="skill-tabs" id="skill-tabs">
+                <!-- Skill tabs will be populated by JavaScript -->
+            </div>
+            <div class="leaderboard-content" id="leaderboard-content">
+                <div class="loading-message">Loading highscores...</div>
+            </div>
+        </div>
+        
+        <button class="refresh-button" onclick="loadHighscores()">🔄 Refresh Highscores</button>
+    </div>
+
+    <script>
+        // All skills from the game (complete list)
+        const gameSkills = [
+            { key: 'overall', name: 'Overall', icon: '📊' },
+            { key: 'attack', name: 'Attack', icon: '⚔️' },
+            { key: 'defence', name: 'Defence', icon: '🛡️' },
+            { key: 'hitpoints', name: 'Hitpoints', icon: '❤️' },
+            { key: 'magic', name: 'Magic', icon: '🪄' },
+            { key: 'ranged', name: 'Ranged', icon: '🏹' },
+            { key: 'blasting', name: 'Blasting', icon: '💣' },
+            { key: 'prayer', name: 'Prayer', icon: '✨' },
+            { key: 'slayer', name: 'Slayer', icon: '☠️' },
+            { key: 'mining', name: 'Mining', icon: '⛏️' },
+            { key: 'smithing', name: 'Smithing', icon: '🔨' },
+            { key: 'fishing', name: 'Fishing', icon: '🎣' },
+            { key: 'cooking', name: 'Cooking', icon: '🍖' },
+            { key: 'woodcutting', name: 'Woodcutting', icon: '🌲' },
+            { key: 'fletching', name: 'Fletching', icon: '🪶' },
+            { key: 'crafting', name: 'Crafting', icon: '💍' },
+            { key: 'harvesting', name: 'Harvesting', icon: '🍄' },
+            { key: 'digging', name: 'Digging', icon: '🪏' },
+            { key: 'apothecary', name: 'Apothecary', icon: '🍇' },
+            { key: 'scribing', name: 'Scribing', icon: '📜' },
+            { key: 'masonry', name: 'Masonry', icon: '🧱' },
+            { key: 'candlemaking', name: 'Candlemaking', icon: '🕯️' },
+            { key: 'painting', name: 'Painting', icon: '🎨' },
+            { key: 'brewing', name: 'Brewing', icon: '🍺' },
+            { key: 'confectionery', name: 'Confectionery', icon: '🍰' },
+            { key: 'tailoring', name: 'Tailoring', icon: '🪡' },
+            { key: 'bonecarving', name: 'Bonecarving', icon: '🦴' },
+            { key: 'pottery', name: 'Pottery', icon: '🏺' },
+            { key: 'thieving', name: 'Thieving', icon: '🎭' },
+            { key: 'alchemy', name: 'Alchemy', icon: '⚖️' },
+            { key: 'creation', name: 'Creation', icon: '🐣' },
+            { key: 'delivery', name: 'Delivery', icon: '✉️' },
+            { key: 'ranching', name: 'Ranching', icon: '🐄' },
+            { key: 'knowledge', name: 'Knowledge', icon: '📚' },
+            { key: 'diplomacy', name: 'Diplomacy', icon: '🕊️' },
+            { key: 'engineering', name: 'Engineering', icon: '⚙️' },
+            { key: 'taming', name: 'Taming', icon: '🐉' }
+        ];
+
+        let currentHighscores = {};
+        let currentSkill = 'overall';
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeHighscoresUI();
+            loadHighscores();
+        });
+
+        async function loadHighscores() {
+            try {
+                document.getElementById('leaderboard-content').innerHTML = 
+                    '<div class="loading-message">Loading highscores...</div>';
+                
+                const response = await fetch('/api/highscores');
+                if (response.ok) {
+                    currentHighscores = await response.json();
+                    showSkillLeaderboard(currentSkill);
+                } else {
+                    document.getElementById('leaderboard-content').innerHTML = 
+                        '<div class="error-message">Failed to load highscores</div>';
+                }
+            } catch (error) {
+                console.log('Could not load highscores:', error);
+                document.getElementById('leaderboard-content').innerHTML = 
+                    '<div class="error-message">Could not connect to server</div>';
+            }
+        }
+
+        function initializeHighscoresUI() {
+            const tabsContainer = document.getElementById('skill-tabs');
+            tabsContainer.innerHTML = '';
+
+            gameSkills.forEach(skill => {
+                const tab = document.createElement('button');
+                tab.className = `skill-tab ${skill.key === currentSkill ? 'active' : ''}`;
+                tab.onclick = () => selectSkill(skill.key);
+                tab.innerHTML = `
+                    <div class="skill-icon">${skill.icon}</div>
+                    <div class="skill-name">${skill.name}</div>
+                `;
+                tab.title = skill.name;
+                tabsContainer.appendChild(tab);
+            });
+        }
+
+        function selectSkill(skillKey) {
+            currentSkill = skillKey;
+            
+            // Update active tab
+            document.querySelectorAll('.skill-tab').forEach((tab, index) => {
+                tab.classList.toggle('active', gameSkills[index].key === skillKey);
+            });
+
+            showSkillLeaderboard(skillKey);
+        }
+
+        function showSkillLeaderboard(skillKey) {
+            const content = document.getElementById('leaderboard-content');
+            const skill = gameSkills.find(s => s.key === skillKey);
+            
+            if (!skill) {
+                content.innerHTML = '<div class="error-message">Skill not found</div>';
+                return;
+            }
+
+            const skillData = currentHighscores[skillKey];
+            
+            if (!skillData || !skillData.players || skillData.players.length === 0) {
+                content.innerHTML = `
+                    <div class="leaderboard-header">
+                        ${skill.icon} ${skill.name} Leaderboard
+                    </div>
+                    <div class="loading-message">
+                        No players found for this skill
+                    </div>
+                `;
+                return;
+            }
+
+            // Build leaderboard HTML
+            let html = `
+                <div class="leaderboard-header">
+                    ${skill.icon} ${skill.name} Leaderboard
+                </div>
+            `;
+
+            skillData.players.slice(0, 25).forEach((player, index) => {
+                const rank = index + 1;
+                const levelDisplay = skillKey === 'overall' ? 
+                    `Total: ${player.level}` : 
+                    `Level ${player.level}`;
+
+                html += `
+                    <div class="leaderboard-entry">
+                        <span class="entry-rank">#${rank}</span>
+                        <span class="entry-player">${player.username}</span>
+                        <span class="entry-level">${levelDisplay}</span>
+                    </div>
+                `;
+            });
+
+            content.innerHTML = html;
+        }
+    </script>
+</body>
+</html> 

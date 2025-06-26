@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebscapeRPG - Adventure Awaits</title>
+    <link rel="stylesheet" href="css/game.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1a252f 0%, #2c3e50 50%, #34495e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+
+        .splash-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .splash-header {
+            text-align: center;
+            padding: 60px 20px 40px;
+            background: linear-gradient(135deg, rgba(52, 73, 94, 0.9) 0%, rgba(44, 62, 80, 0.95) 100%);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-title {
+            color: #f39c12;
+            font-size: 4em;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.7);
+            font-weight: bold;
+            letter-spacing: 3px;
+        }
+
+        .game-subtitle {
+            color: #ecf0f1;
+            font-size: 1.5em;
+            margin-bottom: 30px;
+            font-style: italic;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            gap: 30px;
+            padding: 40px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .section {
+            flex: 1;
+            background: rgba(44, 62, 80, 0.9);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            border: 2px solid #34495e;
+        }
+
+        .section-title {
+            color: #3498db;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Login form styles */
+        .login-form {
+            color: #ecf0f1;
+        }
+
+        .form-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid #34495e;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            background-color: #34495e;
+            color: #bdc3c7;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .tab-btn:hover {
+            background-color: #415769;
+        }
+
+        .tab-btn.active {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .login-tab,
+        .register-tab {
+            display: none;
+        }
+
+        .login-tab.active,
+        .register-tab.active {
+            display: block;
+        }
+
+        .login-tab input,
+        .register-tab input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid #34495e;
+            border-radius: 5px;
+            background-color: #34495e;
+            color: #ecf0f1;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+        }
+
+        .login-tab input:focus,
+        .register-tab input:focus {
+            outline: none;
+            border-color: #3498db;
+            background-color: #415769;
+        }
+
+        .login-tab input::placeholder,
+        .register-tab input::placeholder {
+            color: #95a5a6;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2980b9, #1f5f99);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+
+        .play-button {
+            margin-top: 20px;
+            padding: 20px;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .play-button:hover {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Updates section */
+        .update-item {
+            background: rgba(52, 73, 94, 0.6);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+        }
+
+        .update-date {
+            color: #95a5a6;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .update-title {
+            color: #ecf0f1;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .update-description {
+            color: #bdc3c7;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        /* Highscores section */
+        .highscores-preview {
+            background: rgba(52, 73, 94, 0.6);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .preview-text {
+            color: #bdc3c7;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .highscores-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .highscores-link:hover {
+            background: linear-gradient(135deg, #2980b9, #1f618d);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        .loading-message {
+            text-align: center;
+            color: #95a5a6;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .game-title {
+                font-size: 3em;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .game-title {
+                font-size: 2.5em;
+            }
+            
+            .splash-header {
+                padding: 40px 20px 30px;
+            }
+            
+            .main-content {
+                padding: 20px 15px;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="splash-container">
+        <div class="splash-header">
+            <h1 class="game-title">🏰 WebscapeRPG</h1>
+            <p class="game-subtitle">Epic Adventures Await</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Login Section -->
+            <div class="section">
+                <h2 class="section-title">🎮 Enter the World</h2>
+                
+                <div class="login-form">
+                    <div class="form-tabs">
+                        <button class="tab-btn active" data-tab="login">Login</button>
+                        <button class="tab-btn" data-tab="register">Create Account</button>
+                    </div>
+                    
+                    <div class="login-tab active" id="login-form">
+                        <input type="text" id="login-username" placeholder="Username" autocomplete="username" />
+                        <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" />
+                        <button id="login-btn" class="btn-primary">Login</button>
+                        <div class="error-message" id="login-error"></div>
+                    </div>
+                    
+                    <div class="register-tab" id="register-form">
+                        <input type="text" id="register-username" placeholder="Username (3-20 chars)" autocomplete="username" />
+                        <input type="password" id="register-password" placeholder="Password (6+ chars)" autocomplete="new-password" />
+                        <input type="password" id="register-confirm" placeholder="Confirm Password" autocomplete="new-password" />
+                        <button id="register-btn" class="btn-primary">Create Account</button>
+                        <div class="error-message" id="register-error"></div>
+                    </div>
+
+                    <button id="play-game-btn" class="play-button" style="display: none;">🚀 Enter Game</button>
+                </div>
+            </div>
+
+            <!-- Recent Updates Section -->
+            <div class="section">
+                <h2 class="section-title">📰 Recent Updates</h2>
+                
+                <div class="update-item">
+                    <div class="update-date">December 2024</div>
+                    <div class="update-title">🗺️ Underground Map System</div>
+                    <div class="update-description">Explore vast underground caverns with unique resources and challenges. Use ladders to travel between surface and underground levels.</div>
+                </div>
+
+                <div class="update-item">
+                    <div class="update-date">December 2024</div>
+                    <div class="update-title">🔨 Enhanced Authentication</div>
+                    <div class="update-description">Improved login system with better security and session management. No more duplicate login issues!</div>
+                </div>
+
+                <div class="update-item">
+                    <div class="update-date">November 2024</div>
+                    <div class="update-title">👥 Multiplayer Features</div>
+                    <div class="update-description">Real-time multiplayer with player separation by map levels. See other players' actions and progress in real-time.</div>
+                </div>
+
+                <div class="update-item">
+                    <div class="update-date">November 2024</div>
+                    <div class="update-title">🏪 Shop & Banking System</div>
+                    <div class="update-description">Trade with NPCs, manage your wealth with the banking system, and organize items across multiple tabs.</div>
+                </div>
+            </div>
+
+            <!-- Highscores Section -->
+            <div class="section">
+                <h2 class="section-title">🏆 Skill Leaderboards</h2>
+                
+                <div class="highscores-preview">
+                    <p class="preview-text">
+                        Check out the top players across all 36 skills in WebscapeRPG!
+                        <br>See who dominates in combat, gathering, production, and unique skills.
+                    </p>
+                    <a href="highscores.html" class="highscores-link">
+                        📊 View Full Highscores
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Splash screen functionality
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Always setup splash screen first
+            setupSplashScreen();
+        });
+
+        function setupSplashScreen() {
+            // Tab switching
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const loginTab = document.getElementById('login-form');
+            const registerTab = document.getElementById('register-form');
+            
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    if (btn.dataset.tab === 'login') {
+                        loginTab.classList.add('active');
+                        registerTab.classList.remove('active');
+                    } else {
+                        registerTab.classList.add('active');
+                        loginTab.classList.remove('active');
+                    }
+                });
+            });
+
+            // Login form
+            setupLoginForm();
+            
+            // Register form
+            setupRegisterForm();
+
+            // Play game button - only show if logged in
+            const playGameBtn = document.getElementById('play-game-btn');
+            playGameBtn.addEventListener('click', () => {
+                showPlayButton();
+            });
+
+            // Enter key handling
+            document.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const activeTab = document.querySelector('.login-tab.active, .register-tab.active');
+                    if (activeTab && activeTab.id === 'login-form') {
+                        document.getElementById('login-btn').click();
+                    } else if (activeTab && activeTab.id === 'register-form') {
+                        document.getElementById('register-btn').click();
+                    }
+                }
+            });
+        }
+
+        function setupLoginForm() {
+            const loginBtn = document.getElementById('login-btn');
+            const loginUsername = document.getElementById('login-username');
+            const loginPassword = document.getElementById('login-password');
+            const loginError = document.getElementById('login-error');
+            
+            loginBtn.addEventListener('click', async () => {
+                const username = loginUsername.value.trim();
+                const password = loginPassword.value;
+                
+                if (!username || !password) {
+                    loginError.textContent = 'Please enter username and password';
+                    return;
+                }
+                
+                try {
+                    loginBtn.disabled = true;
+                    loginBtn.textContent = 'Logging in...';
+                    loginError.textContent = '';
+                    
+                    const result = await login(username, password);
+                    if (result.success) {
+                        if (result.sessionId) {
+                            localStorage.setItem('webscape_session', result.sessionId);
+                        }
+                        showPlayButton();
+                    } else {
+                        if (result.error && result.error.includes('already logged in')) {
+                            loginError.textContent = 'Account is already active on another device. Please try again.';
+                        } else {
+                            loginError.textContent = result.error || 'Login failed';
+                        }
+                    }
+                } catch (error) {
+                    loginError.textContent = 'Connection error';
+                } finally {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Login';
+                }
+            });
+        }
+
+        function setupRegisterForm() {
+            const registerBtn = document.getElementById('register-btn');
+            const registerUsername = document.getElementById('register-username');
+            const registerPassword = document.getElementById('register-password');
+            const registerConfirm = document.getElementById('register-confirm');
+            const registerError = document.getElementById('register-error');
+            
+            registerBtn.addEventListener('click', async () => {
+                const username = registerUsername.value.trim();
+                const password = registerPassword.value;
+                const confirm = registerConfirm.value;
+                
+                if (!username || !password || !confirm) {
+                    registerError.textContent = 'Please fill all fields';
+                    return;
+                }
+                
+                if (password !== confirm) {
+                    registerError.textContent = 'Passwords do not match';
+                    return;
+                }
+                
+                try {
+                    registerBtn.disabled = true;
+                    registerBtn.textContent = 'Creating account...';
+                    registerError.textContent = '';
+                    
+                    const result = await register(username, password);
+                    if (result.success) {
+                        registerError.style.color = 'green';
+                        registerError.textContent = 'Account created! You can now login.';
+                        
+                        // Switch to login tab
+                        document.querySelector('.tab-btn[data-tab="login"]').click();
+                        document.getElementById('login-username').value = username;
+                    } else {
+                        registerError.textContent = result.error || 'Registration failed';
+                    }
+                } catch (error) {
+                    registerError.textContent = 'Connection error';
+                } finally {
+                    registerBtn.disabled = false;
+                    registerBtn.textContent = 'Create Account';
+                }
+            });
+        }
+
+        async function showPlayButton() {
+            // Actively verify the session is recognised by the server before heading to the game
+            let attempts = 0;
+            const maxAttempts = 5;
+            const delayMs = 300;
+
+            while (attempts < maxAttempts) {
+                try {
+                    const res = await fetch('/api/check-auth', { credentials: 'include' });
+                    const data = await res.json();
+                    console.log('🔄 Post-login auth check:', data);
+                    if (data.isAuthenticated) {
+                        return window.location.replace('index.html');
+                    }
+                } catch (_) {
+                    // Network hiccup – just retry
+                }
+
+                await new Promise(r => setTimeout(r, delayMs));
+                attempts++;
+            }
+
+            // If we reached here the session never became valid – inform the player
+            alert('Login session could not be established. Please try again.');
+        }
+
+        async function login(username, password) {
+            try {
+                // Always include credentials so the Set-Cookie response header is stored
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                return await response.json();
+            } catch (error) {
+                return { success: false, error: 'Connection error' };
+            }
+        }
+
+        async function register(username, password) {
+            try {
+                // Include credentials in case the server chooses to
+                // automatically log the user in after registration in the future
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                return await response.json();
+            } catch (error) {
+                return { success: false, error: 'Connection error' };
+            }
+        }
+
+        // No longer need highscores logic here - moved to dedicated page
+    </script>
+</body>
+</html> 

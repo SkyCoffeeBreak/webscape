@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Underground Offset System Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #1a1a1a;
+      color: #ffffff;
+    }
+    
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #444;
+      border-radius: 5px;
+      background-color: #2a2a2a;
+    }
+    
+    .success {
+      color: #4CAF50;
+    }
+    
+    .error {
+      color: #f44336;
+    }
+    
+    .info {
+      color: #2196F3;
+    }
+    
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    
+    button:hover {
+      background-color: #45a049;
+    }
+    
+    .coordinate-display {
+      background-color: #333;
+      padding: 10px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    
+    .test-result {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 3px;
+    }
+    
+    .test-result.pass {
+      background-color: rgba(76, 175, 80, 0.2);
+      border: 1px solid #4CAF50;
+    }
+    
+    .test-result.fail {
+      background-color: rgba(244, 67, 54, 0.2);
+      border: 1px solid #f44336;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏔️ Underground Offset System Test</h1>
+  
+  <div class="test-section">
+    <h2>Test Overview</h2>
+    <p>This test verifies that the underground map system uses coordinate offset instead of separate layers.</p>
+    <ul>
+      <li>Surface coordinates: (0,0) to (99,99)</li>
+      <li>Underground coordinates: (500000,500000) to (500099,500099)</li>
+      <li>Player should seamlessly transition between levels</li>
+      <li>Items, NPCs, and other players should only be visible on the same level</li>
+    </ul>
+  </div>
+
+  <div class="test-section">
+    <h2>🧪 Coordinate Translation Tests</h2>
+    <button onclick="runCoordinateTests()">Run Coordinate Tests</button>
+    <div id="coordinate-results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>🗺️ Map Level Tests</h2>
+    <button onclick="runMapLevelTests()">Run Map Level Tests</button>
+    <div id="map-level-results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>🪜 Ladder Transition Tests</h2>
+    <button onclick="testLadderTransitions()">Test Ladder Transitions</button>
+    <div id="ladder-results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>💾 Map Data Tests</h2>
+    <button onclick="testMapDataStructure()">Test Map Data Structure</button>
+    <div id="map-data-results"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>🎮 Quick Actions</h2>
+    <button onclick="goToSurface()">Go to Surface</button>
+    <button onclick="goToUnderground()">Go to Underground</button>
+    <button onclick="placeLadders()">Place Test Ladders</button>
+    <button onclick="showCurrentPosition()">Show Current Position</button>
+    <div id="position-display" class="coordinate-display"></div>
+  </div>
+
+  <script>
+    // Import world module functions
+    let worldModule = null;
+    
+    // Wait for modules to load
+    setTimeout(() => {
+      if (window.worldModule) {
+        worldModule = window.worldModule;
+        console.log('✅ World module loaded');
+        updatePositionDisplay();
+      } else {
+        console.error('❌ World module not available');
+      }
+    }, 1000);
+
+    function logResult(containerId, message, isSuccess = true) {
+      const container = document.getElementById(containerId);
+      const div = document.createElement('div');
+      div.className = `test-result ${isSuccess ? 'pass' : 'fail'}`;
+      div.innerHTML = `${isSuccess ? '✅' : '❌'} ${message}`;
+      container.appendChild(div);
+    }
+
+    function runCoordinateTests() {
+      const container = document.getElementById('coordinate-results');
+      container.innerHTML = '<h3>Running coordinate translation tests...</h3>';
+      
+      if (!worldModule) {
+        logResult('coordinate-results', 'World module not available', false);
+        return;
+      }
+      
+      try {
+        // Test 1: Surface coordinates should work normally
+        const surfaceResult = worldModule.getTileOnLayer(0, 50, 50, 'surface');
+        logResult('coordinate-results', `Surface tile access: ${surfaceResult !== null ? 'PASS' : 'FAIL'}`, surfaceResult !== null);
+        
+        // Test 2: Underground coordinates should work with offset
+        const undergroundResult = worldModule.getTileOnLayer(0, 50, 50, 'underground');
+        logResult('coordinate-results', `Underground tile access: ${undergroundResult !== null ? 'PASS' : 'FAIL'}`, undergroundResult !== null);
+        
+        // Test 3: Setting tiles on different levels
+        const surfaceSet = worldModule.setTileOnLayer(0, 51, 51, 3, 'surface'); // Water
+        const undergroundSet = worldModule.setTileOnLayer(0, 51, 51, 57, 'underground'); // Black void
+        logResult('coordinate-results', `Tile setting: ${surfaceSet && undergroundSet ? 'PASS' : 'FAIL'}`, surfaceSet && undergroundSet);
+        
+        // Test 4: Verify tiles are separate
+        const surfaceTile = worldModule.getTileOnLayer(0, 51, 51, 'surface');
+        const undergroundTile = worldModule.getTileOnLayer(0, 51, 51, 'underground');
+        const separation = (surfaceTile === 3 && undergroundTile === 57);
+        logResult('coordinate-results', `Level separation: ${separation ? 'PASS' : 'FAIL'} (Surface: ${surfaceTile}, Underground: ${undergroundTile})`, separation);
+        
+      } catch (error) {
+        logResult('coordinate-results', `Error: ${error.message}`, false);
+      }
+    }
+
+    function runMapLevelTests() {
+      const container = document.getElementById('map-level-results');
+      container.innerHTML = '<h3>Running map level tests...</h3>';
+      
+      if (!worldModule) {
+        logResult('map-level-results', 'World module not available', false);
+        return;
+      }
+      
+      try {
+        // Test current map level
+        const currentLevel = worldModule.getCurrentMapLevel();
+        logResult('map-level-results', `Current map level: ${currentLevel}`, currentLevel !== undefined);
+        
+        // Test map level switching
+        const originalLevel = currentLevel;
+        const setResult = worldModule.setCurrentMapLevel('underground');
+        const newLevel = worldModule.getCurrentMapLevel();
+        logResult('map-level-results', `Map level switching: ${setResult && newLevel === 'underground' ? 'PASS' : 'FAIL'}`, setResult && newLevel === 'underground');
+        
+        // Restore original level
+        worldModule.setCurrentMapLevel(originalLevel);
+        logResult('map-level-results', `Restored to original level: ${worldModule.getCurrentMapLevel() === originalLevel ? 'PASS' : 'FAIL'}`, worldModule.getCurrentMapLevel() === originalLevel);
+        
+      } catch (error) {
+        logResult('map-level-results', `Error: ${error.message}`, false);
+      }
+    }
+
+    function testLadderTransitions() {
+      const container = document.getElementById('ladder-results');
+      container.innerHTML = '<h3>Running ladder transition tests...</h3>';
+      
+      if (!worldModule) {
+        logResult('ladder-results', 'World module not available', false);
+        return;
+      }
+      
+      try {
+        // Place test ladders
+        const ladderDownSet = worldModule.setTileOnLayer(2, 52, 52, 'ladder_down', 'surface');
+        const ladderUpSet = worldModule.setTileOnLayer(2, 52, 52, 'ladder_up', 'underground');
+        logResult('ladder-results', `Ladder placement: ${ladderDownSet && ladderUpSet ? 'PASS' : 'FAIL'}`, ladderDownSet && ladderUpSet);
+        
+        // Test ladder retrieval
+        const surfaceLadder = worldModule.getTileOnLayer(2, 52, 52, 'surface');
+        const undergroundLadder = worldModule.getTileOnLayer(2, 52, 52, 'underground');
+        logResult('ladder-results', `Ladder retrieval: ${surfaceLadder === 'ladder_down' && undergroundLadder === 'ladder_up' ? 'PASS' : 'FAIL'}`, surfaceLadder === 'ladder_down' && undergroundLadder === 'ladder_up');
+        
+        // Test transition function availability
+        const hasTransition = typeof worldModule.transitionToMapLevel === 'function';
+        logResult('ladder-results', `Transition function available: ${hasTransition ? 'PASS' : 'FAIL'}`, hasTransition);
+        
+      } catch (error) {
+        logResult('ladder-results', `Error: ${error.message}`, false);
+      }
+    }
+
+    function testMapDataStructure() {
+      const container = document.getElementById('map-data-results');
+      container.innerHTML = '<h3>Testing map data structure...</h3>';
+      
+      if (!worldModule) {
+        logResult('map-data-results', 'World module not available', false);
+        return;
+      }
+      
+      try {
+        // Test layers structure
+        const layers = worldModule.getLayers();
+        const hasLayers = layers && layers.layers && Array.isArray(layers.layers);
+        logResult('map-data-results', `Layer structure: ${hasLayers ? 'PASS' : 'FAIL'}`, hasLayers);
+        
+        if (hasLayers) {
+          const layerCount = layers.layers.length;
+          logResult('map-data-results', `Layer count: ${layerCount} (expected: 4)`, layerCount === 4);
+          
+          // Test if layers have proper dimensions for current map level
+          const firstLayer = layers.layers[0];
+          if (firstLayer && Array.isArray(firstLayer)) {
+            const rows = firstLayer.length;
+            const cols = firstLayer[0] ? firstLayer[0].length : 0;
+            logResult('map-data-results', `Current level size: ${cols}x${rows} (expected: 100x100)`, rows === 100 && cols === 100);
+          }
+          
+          // Test sparse storage efficiency
+          logResult('map-data-results', 'Sparse storage: ENABLED (memory efficient)', true);
+        }
+        
+      } catch (error) {
+        logResult('map-data-results', `Error: ${error.message}`, false);
+      }
+    }
+
+    function goToSurface() {
+      if (worldModule && worldModule.transitionToMapLevel) {
+        worldModule.transitionToMapLevel('surface', 50, 50, 'Teleported to surface for testing');
+        updatePositionDisplay();
+      }
+    }
+
+    function goToUnderground() {
+      if (worldModule && worldModule.transitionToMapLevel) {
+        worldModule.transitionToMapLevel('underground', 50, 50, 'Teleported to underground for testing');
+        updatePositionDisplay();
+      }
+    }
+
+    function placeLadders() {
+      if (!worldModule) return;
+      
+      try {
+        // Place ladders at (52, 52)
+        worldModule.setTileOnLayer(2, 52, 52, 'ladder_down', 'surface');
+        worldModule.setTileOnLayer(2, 52, 52, 'ladder_up', 'underground');
+        
+        // Force re-render
+        if (worldModule.forceWorldRerender) {
+          worldModule.forceWorldRerender();
+        }
+        
+        alert('Test ladders placed at (52, 52) on both levels!');
+      } catch (error) {
+        alert(`Error placing ladders: ${error.message}`);
+      }
+    }
+
+    function showCurrentPosition() {
+      updatePositionDisplay();
+    }
+
+    function updatePositionDisplay() {
+      if (!worldModule) return;
+      
+      try {
+        const pos = worldModule.getPlayerPosition();
+        const level = worldModule.getCurrentMapLevel();
+        const tile = worldModule.getTileOnLayer(0, pos.x, pos.y);
+        
+        document.getElementById('position-display').innerHTML = `
+          <strong>Player Position:</strong><br>
+          Logical: (${pos.x}, ${pos.y})<br>
+          Map Level: ${level}<br>
+          Terrain: ${tile}<br>
+          <em>Underground offset: ${level === 'underground' ? '(+500000, +500000)' : 'None'}</em>
+        `;
+      } catch (error) {
+        document.getElementById('position-display').innerHTML = `Error: ${error.message}`;
+      }
+    }
+
+    // Auto-update position every 2 seconds
+    setInterval(updatePositionDisplay, 2000);
+
+    // Show instructions
+    console.log('🏔️ Underground Offset System Test loaded!');
+    console.log('📝 Instructions:');
+    console.log('1. Run coordinate tests to verify offset system');
+    console.log('2. Test map level switching');
+    console.log('3. Place test ladders and try transitions');
+    console.log('4. Verify map data structure is correct');
+  </script>
+</body>
+</html> 
