@@ -3,10 +3,20 @@
  * Manages authentication, WebSocket connections, and player synchronization
  */
 
-// Configuration
-const SERVER_URL = 'localhost:8081';
-const API_BASE = `http://${SERVER_URL}/api`;
-const WS_URL = `ws://${SERVER_URL}`;
+// Configuration – detect host/port at runtime so the same bundle works
+// locally (localhost:8081) and on hosted environments (Render, etc.)
+// where the Node server and the static files share the same origin.
+
+const { protocol, hostname, port } = window.location;
+
+// Determine API base (REST) and WebSocket URLs dynamically.
+// – For HTTPS we must use wss:// otherwise ws://.
+// – If the current page already contains a non-default port we re-use it.
+
+const API_BASE = `${protocol}//${hostname}${port ? `:${port}` : ''}/api`;
+
+const WS_SCHEME = protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = `${WS_SCHEME}//${hostname}${port ? `:${port}` : ''}`;
 
 // State
 let isOnline = false;

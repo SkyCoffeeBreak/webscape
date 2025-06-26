@@ -5684,7 +5684,12 @@
       },
       "totalLevel": 87,
       "combatLevel": 3,
-      "completedBooks": []
+      "completedBooks": [],
+      "position": {
+        "x": 49,
+        "y": 49,
+        "mapLevel": "surface"
+      }
     },
     "createdAt": 1748901833269,
     "spawnPosition": {
@@ -5692,8 +5697,8 @@
       "y": 10
     },
     "savedPosition": {
-      "x": 61,
-      "y": 53
+      "x": 49,
+      "y": 49
     },
     "savedSkills": {
       "attack": 1,
@@ -7388,7 +7393,8 @@
       "candlemaking": 0,
       "pottery": 0
     },
-    "savedCompletedBooks": []
+    "savedCompletedBooks": [],
+    "sessionId": "e773e1326b8d1e86b3b2df49dce9a7f0e9f8a8a7f73b1c7d5664723cd910ee6b"
   },
   "Boo": {
     "password": "00a7fb3d8bcbf1db0b5b6e544d348ca8ccb0bdc3e752a9a053cddd4f8407b0b4",
@@ -17249,7 +17255,7 @@
       "combatLevel": 3,
       "position": {
         "x": 57,
-        "y": 50,
+        "y": 46,
         "mapLevel": "surface"
       },
       "completedBooks": []
@@ -17262,7 +17268,8 @@
     },
     "savedPosition": {
       "x": 57,
-      "y": 50
+      "y": 46,
+      "mapLevel": "surface"
     },
     "sessionId": "3ef31caeb0752a330edf1b5e43431bc0f0bafceb648025d09ef829bf2ea6793a",
     "savedSkills": {
