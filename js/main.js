@@ -27,6 +27,7 @@ import { initializeNPCs, handleNPCData, handleNPCMove, handleNPCStop, handleNPCR
 import { initializeCombat } from './modules/combat.js';
 import { initializeDayNight, toggleDayNightCycle, getCurrentTimeInfo, setTimePeriod, cleanup as cleanupDayNight } from './modules/dayNight.js';
 import { initializeDigging, startDigging, cancelDigging, isDigging, handleMovementComplete as diggingHandleMovementComplete, getActiveDiggingSession, handleShovelInteraction, syncDiggingHolesFromServer, handleDiggingHoleMessage, hasDiggingHole, getActiveDiggingHoles, SHOVEL_DEFINITIONS } from './modules/skills/digging.js';
+import { initializeArchaeology, startArchaeology, cancelArchaeology, isExcavating, handleDigSiteClick } from './modules/skills/archaeology.js';
 
 // Global variables
 let userProfile = null;
@@ -36,9 +37,23 @@ let gameWorld = null;
 let onlinePlayers = new Map(); // Store online player elements
 // Store health updates that arrive before player DOM element is ready
 const pendingOnlineHP = new Map(); // username -> {cur,max}
+const onlinePlayerHPBars = new Map(); // username -> bar element
 
 // HUD Hitpoints element for local player
 let hudHPElement = null;
+
+// Helper to fetch the DOM element for an online player (case-insensitive)
+window.getOnlinePlayerElement = function(name) {
+  if (!name) return null;
+  // Direct lookup first
+  if (onlinePlayers.has(name)) return onlinePlayers.get(name);
+  // Case-insensitive fallback
+  const lower = name.toLowerCase();
+  for (const [key, el] of onlinePlayers) {
+    if (key.toLowerCase() === lower) return el;
+  }
+  return null;
+};
 
 function ensureHUDHPElement() {
   if (hudHPElement) return hudHPElement;
@@ -65,6 +80,12 @@ function ensureHUDHPElement() {
 function updateHUDHPDisplay(cur,max){
   const el = ensureHUDHPElement();
   el.textContent = `❤️  ${cur} / ${max}`;
+  
+  // Update header display
+  const headerSpan = document.getElementById('header-hp');
+  if (headerSpan) {
+    headerSpan.textContent = `${cur} / ${max}`;
+  }
 }
 
 // expose early (uiModule may not yet exist)
@@ -80,6 +101,12 @@ async function initGame() {
   
   // Load or create user profile
   userProfile = initializeStorage();
+  
+  // Validate and fix skills/experience data to ensure hitpoints is correct
+  const { validateSkillsExperience } = await import('./modules/skills.js');
+  const validated = validateSkillsExperience(userProfile.skills, userProfile.skillsExp);
+  userProfile.skills = validated.skills;
+  userProfile.skillsExp = validated.skillsExp;
   
   // Update login timestamp
   userProfile = updateLoginTimestamp(userProfile);
@@ -99,10 +126,40 @@ async function initGame() {
     }
   };
   
+  // Initialize tabs first
+  initializeTabs();
+  
+  // Make userProfile globally accessible for player form system
+  window.currentUserProfile = userProfile;
+  
+  // Set up userModule BEFORE other initialization
+  window.userModule = {
+    ...(window.userModule || {}), // Preserve any existing functions from user.js
+    getProfile: () => userProfile,
+    saveProfile: () => saveGame(),
+    saveMapLevel: (profile, mapLevel) => {
+      saveMapLevel(profile, mapLevel);
+      saveGame(); // Save after updating map level
+    },
+    getSavedMapLevel: (profile) => {
+      return getSavedMapLevel(profile);
+    },
+    savePlayerPosition: (profile, x, y, mapLevel = null) => {
+      savePlayerPosition(profile, x, y, mapLevel);
+      saveGame(); // Save after updating position
+    },
+    getSavedPlayerPosition: (profile) => {
+      return getSavedPlayerPosition(profile);
+    }
+  };
+  
+  // Now initialize skills UI with userModule available
   initializeSkillsUI(userProfile, uiCallbacks);
   
-  // Initialize tabs
-  initializeTabs();
+  // Initialize header HP display with current values
+  const currentHP = userProfile.currentHP || userProfile.skills.hitpoints || 10;
+  const maxHP = userProfile.skills.hitpoints || 10;
+  updateHUDHPDisplay(currentHP, maxHP);
   
   // Expose modules to window for cross-module communication BEFORE initializing world
   window.inventoryModule = { 
@@ -215,24 +272,9 @@ async function initGame() {
     updateAllExperienceBars: updateAllExperienceBars,
     updateCurrentHPDisplay: window.uiModule?.updateCurrentHPDisplay || (()=>{})
   };
-  window.userModule = {
-    getProfile: () => userProfile,
-    saveProfile: () => saveGame(),
-    saveMapLevel: (profile, mapLevel) => {
-      saveMapLevel(profile, mapLevel);
-      saveGame(); // Save after updating map level
-    },
-    getSavedMapLevel: (profile) => {
-      return getSavedMapLevel(profile);
-    },
-    savePlayerPosition: (profile, x, y, mapLevel = null) => {
-      savePlayerPosition(profile, x, y, mapLevel);
-      saveGame(); // Save after updating position
-    },
-    getSavedPlayerPosition: (profile) => {
-      return getSavedPlayerPosition(profile);
-    }
-  };
+  // Ensure we don't lose the HUD HP updater when reassigning uiModule
+  // (this was previously added before initGame but got overwritten by the reassignment)
+  window.uiModule.updateHUDHPDisplay = window.uiModule.updateHUDHPDisplay || updateHUDHPDisplay;
   window.miningModule = {
     startMining: startMining,
     startMiningApproved: startMiningApproved,
@@ -351,6 +393,20 @@ async function initGame() {
       window.worldModule.setPlayerPosition(savedPosition.x, savedPosition.y);
       console.log(`📍 Player position restored to: (${savedPosition.x}, ${savedPosition.y})`);
     }
+    
+    // Load and apply player form from profile
+    if (window.userModule && window.userModule.loadPlayerForm) {
+      window.userModule.loadPlayerForm(userProfile);
+      console.log(`🎭 Player form restored: ${window.userModule.getPlayerForm()}`);
+      
+      // Force update player sprite after everything is loaded
+      setTimeout(() => {
+        if (window.userModule && window.userModule.updatePlayerSprite) {
+          window.userModule.updatePlayerSprite();
+          console.log('🎭 Player sprite updated after initialization');
+        }
+      }, 200);
+    }
   }, 100); // Small delay to ensure world module is fully initialized
   
   // Initialize NPC system
@@ -371,6 +427,10 @@ async function initGame() {
   initializeCooking();
   initializeHarvesting();
   initializeDigging();
+  initializeArchaeology();
+  
+  // Add some test archaeology dig sites
+  addTestDigSites();
   
   // Expose digging module functions globally immediately after initialization
   window.diggingModule = {
@@ -383,6 +443,14 @@ async function initGame() {
     handleDiggingHoleMessage,
     hasDiggingHole,
     getActiveDiggingHoles
+  };
+  
+  // Expose archaeology module functions globally immediately after initialization
+  window.archaeologyModule = {
+    startArchaeology,
+    cancelArchaeology,
+    isExcavating,
+    handleDigSiteClick
   };
   
   // Initialize chat system
@@ -500,6 +568,9 @@ async function initGame() {
   
   // Give player starting bronze shovel for digging testing
   addItemToInventory('bronze_shovel', 1);
+  
+  // Give player starting archaeology equipment for archaeology testing
+  addItemToInventory('wooden_brush', 1);
   
   // Give player starting fishing equipment for fishing testing
   addItemToInventory('small_net', 1);
@@ -669,10 +740,53 @@ async function initGame() {
   initializeCombat();
   
   // near end of initGame after world init and before return
-  if (window.uiModule?.updateHUDHPDisplay) {
+  if (window.uiModule?.updateHUDHPDisplay && !isUserOnline()) {
     const hp = userProfile?.skills?.hitpoints || 10;
     window.uiModule.updateHUDHPDisplay(hp, hp);
   }
+  
+  /* ---------------------- Inactivity Auto-Logout ---------------------- */
+  let lastActivity = Date.now();
+  
+  const resetInactivityTimer = () => {
+    lastActivity = Date.now();
+    // Notify server of activity so logout timer stays in sync
+    try {
+      const ws = window.getWebSocket ? window.getWebSocket() : null;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'activity-ping', timestamp: Date.now() }));
+      }
+    } catch (err) {
+      console.warn('Activity ping failed:', err);
+    }
+  };
+  
+  // Treat most common interactions as activity
+  ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'].forEach(evt => {
+    document.addEventListener(evt, resetInactivityTimer, { passive: true });
+  });
+  
+  setInterval(() => {
+    if (!isUserOnline()) return; // Only matters when connected
+    const mins = userProfile?.settings?.autoLogoutMinutes || 5;
+    if (!mins) return; // 0 or undefined = disabled
+    const idleMs = Date.now() - lastActivity;
+    if (idleMs >= mins * 60_000) {
+      try {
+        const ws = window.getWebSocket ? window.getWebSocket() : null;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+      } catch (err) {
+        console.warn('Auto-logout ws close failed:', err);
+      }
+  
+      showNotification('You were logged out due to inactivity.', 'info');
+  
+      // Redirect to splash / login screen after small delay so notification is visible
+      setTimeout(() => window.location.href = 'splash.html', 1500);
+    }
+  }, 30_000); // check every 30s
 }
 
 /**
@@ -693,7 +807,8 @@ function setupPeriodicDataSync() {
           inventory: window.inventoryModule?.playerInventory || [],
           totalLevel: userProfile.totalLevel,
           combatLevel: userProfile.combatLevel,
-          completedBooks: userProfile.completedBooks || []
+          completedBooks: userProfile.completedBooks || [],
+          settings: userProfile.settings // include settings so server persists logout minutes
         };
         
         console.log('🔄 Auto-saving player data to server...');
@@ -740,7 +855,8 @@ function saveGame() {
       inventory: window.inventoryModule?.playerInventory || [],
       totalLevel: userProfile.totalLevel,
       combatLevel: userProfile.combatLevel,
-      completedBooks: userProfile.completedBooks || [] // Include completed books in server sync
+      completedBooks: userProfile.completedBooks || [], // Include completed books in server sync
+      settings: userProfile.settings // Persist settings including autoLogoutMinutes
     };
     
     savePlayerDataToServer(playerData);
@@ -824,26 +940,46 @@ function handleOnlinePlayerMove(username, position, profile, movementData) {
     playerElement.dataset.username = username;
     playerElement.style.position = 'absolute';
     
-    // Use exact same sizing as main player character (67% of GRID_SIZE)
-    const GRID_SIZE = 32;
-    playerElement.style.width = `${Math.round(GRID_SIZE * 0.67)}px`; // Match main player size exactly
-    playerElement.style.height = `${Math.round(GRID_SIZE * 0.67)}px`; // Match main player size exactly
-    playerElement.style.borderRadius = '50%'; // Circle like main player
-    playerElement.style.border = '2px solid #ffffff'; // White border like main player
-    playerElement.style.boxShadow = '0 0 5px rgba(0, 0, 0, 0.3)'; // Same shadow as main player - no glow
+    // Use exact same sizing as main player character (100% of grid size - 50% larger than before)
+    const gridSize = window.worldModule?.getGridSize ? window.worldModule.getGridSize() : 32;
+    playerElement.style.width = `${Math.round(gridSize * 1.0)}px`; // Increased from 0.67 to 1.0 (50% larger)
+    playerElement.style.height = `${Math.round(gridSize * 1.0)}px`; // Increased from 0.67 to 1.0 (50% larger)
+    playerElement.style.border = 'none'; // No border
+    playerElement.style.textShadow = '1px 1px 1px #000000, -1px -1px 1px #000000, 1px -1px 1px #000000, -1px 1px 1px #000000'; // Text-shadow outline like world objects
     playerElement.style.cursor = 'pointer';
     playerElement.style.zIndex = '11'; // Slightly higher than main player (10) but below objects like banks (z-index 8)
     
-    // Add the same centering margins as main player character for proper alignment
-    playerElement.style.marginLeft = `${Math.round(GRID_SIZE * 0.165)}px`;
-    playerElement.style.marginTop = `${Math.round(GRID_SIZE * 0.165)}px`; // Same margin for proper centering
+    // Centered positioning (no margins needed)
+    playerElement.style.marginLeft = '0px';
+    playerElement.style.marginTop = '0px';
     
-    // Apply player color from profile (same as main player character style)
-    if (profile && profile.settings && profile.settings.playerColor) {
-      playerElement.style.backgroundColor = profile.settings.playerColor;
-    } else {
-      playerElement.style.backgroundColor = '#e74c3c'; // Default red for other players
-    }
+    // Use sprite for online player (get their player form)
+    const playerForm = profile?.playerForm || 'human'; // Default to human if no form specified
+    const playerForms = {
+      human: {
+        idle: '/images/player/human_idle.gif',
+        walk: '/images/player/human_walk.gif',
+        width: 32,
+        height: 32
+      },
+      slime: {
+        sprite: '/images/player/slime.png',
+        width: 32,
+        height: 32
+      }
+      // Add more forms here as they become available
+    };
+    
+    // Set up sprite styling properties optimized for pixel-perfect 32x32 sprites
+    const pixelRatio = calculateOnlinePlayerPixelRatio(gridSize, 32);
+    const scaledSize = `${32 * pixelRatio}px`;
+    playerElement.style.backgroundSize = `${scaledSize} ${scaledSize}`;
+    playerElement.style.backgroundRepeat = 'no-repeat';
+    playerElement.style.backgroundPosition = 'center';
+    playerElement.style.backgroundColor = 'transparent'; // Remove color background when using sprite
+    
+    // Initialize with idle sprite
+    updateOnlinePlayerSprite(playerElement, false, 'south');
     
     // Remove any text content (no emoji or text that could create extra visual elements)
     playerElement.textContent = '';
@@ -868,6 +1004,9 @@ function handleOnlinePlayerMove(username, position, profile, movementData) {
     // Initialize last position update timestamp
     playerElement.dataset.lastPositionUpdate = Date.now();
     
+    // Initialize movement state
+    playerElement.dataset.isMoving = 'false';
+    
     // Create username label
     const usernameLabel = document.createElement('div');
     usernameLabel.className = 'online-player-username';
@@ -890,25 +1029,7 @@ function handleOnlinePlayerMove(username, position, profile, movementData) {
     
     playerElement.appendChild(usernameLabel);
     
-    // Create direction indicator (same as main player)
-    const directionIndicator = document.createElement('div');
-    directionIndicator.className = 'direction-indicator';
-    directionIndicator.style.position = 'absolute';
-    directionIndicator.style.width = '6px';
-    directionIndicator.style.height = '6px';
-    directionIndicator.style.backgroundColor = '#ffffff';
-    directionIndicator.style.borderRadius = '50%';
-    directionIndicator.style.top = '80%'; // Default south position
-    directionIndicator.style.left = '50%';
-    directionIndicator.style.transform = 'translate(-50%, -50%)';
-    directionIndicator.style.opacity = '0.8';
-    directionIndicator.style.pointerEvents = 'none';
-    directionIndicator.style.fontSize = '8px';
-    directionIndicator.style.color = '#ffffff';
-    directionIndicator.style.textAlign = 'center';
-    directionIndicator.style.lineHeight = '6px';
-    
-    playerElement.appendChild(directionIndicator);
+    // No direction indicator needed - using sprite flipping instead
     
     gameWorld.appendChild(playerElement);
     onlinePlayers.set(username, playerElement);
@@ -937,8 +1058,8 @@ function handleOnlinePlayerMove(username, position, profile, movementData) {
   // Calculate movement distance
   const movementDistance = Math.sqrt(Math.pow(position.x - prevX, 2) + Math.pow(position.y - prevY, 2));
   
-  // More lenient movement threshold - accept more position updates for better visibility
-  const isSignificantMovement = movementDistance > 0.02; // Reduced from 0.1 to catch smaller movements
+  // Very lenient movement threshold for animation responsiveness
+  const isSignificantMovement = movementDistance > 0.01; // Very sensitive to catch all movement
   
   // Accept teleportation-style jumps as significant movement to handle player spawning/teleporting
   const isTeleportation = movementDistance > 5; 
@@ -950,9 +1071,11 @@ function handleOnlinePlayerMove(username, position, profile, movementData) {
     const now = Date.now();
     playerElement.dataset.lastSignificantMove = now.toString();
     
-    // Update existing player's color if it changed
+    // Update existing player's color if it changed (store but don't apply to sprites)
     if (profile && profile.settings && profile.settings.playerColor) {
-      playerElement.style.backgroundColor = profile.settings.playerColor;
+      playerElement.dataset.playerColor = profile.settings.playerColor;
+      // Keep background transparent for sprites
+      playerElement.style.backgroundColor = 'transparent';
     }
     
     // Calculate direction player is facing based on movement (only for actual movement, not teleportation)
@@ -978,48 +1101,29 @@ function handleOnlinePlayerMove(username, position, profile, movementData) {
       
       playerElement.dataset.direction = direction;
       
-      // Update direction indicator
-      const directionIndicator = playerElement.querySelector('.direction-indicator');
-      if (directionIndicator) {
-        switch (direction) {
-          case 'north':
-            directionIndicator.style.top = '20%';
-            directionIndicator.style.left = '50%';
-            break;
-          case 'northeast':
-            directionIndicator.style.top = '20%';
-            directionIndicator.style.left = '80%';
-            break;
-          case 'east':
-            directionIndicator.style.top = '50%';
-            directionIndicator.style.left = '80%';
-            break;
-          case 'southeast':
-            directionIndicator.style.top = '80%';
-            directionIndicator.style.left = '80%';
-            break;
-          case 'south':
-            directionIndicator.style.top = '80%';
-            directionIndicator.style.left = '50%';
-            break;
-          case 'southwest':
-            directionIndicator.style.top = '80%';
-            directionIndicator.style.left = '20%';
-            break;
-          case 'west':
-            directionIndicator.style.top = '50%';
-            directionIndicator.style.left = '20%';
-            break;
-          case 'northwest':
-            directionIndicator.style.top = '20%';
-            directionIndicator.style.left = '20%';
-            break;
-        }
+      // Apply sprite animation and direction changes
+      updateOnlinePlayerSprite(playerElement, true, direction);
+      
+      // Mark as moving and set up idle timer
+      playerElement.dataset.isMoving = 'true';
+      
+      // Clear any existing idle timer
+      if (playerElement._idleTimer) {
+        clearTimeout(playerElement._idleTimer);
       }
+      
+      // Set new idle timer (switch to idle after 200ms of no movement updates for responsiveness)
+      playerElement._idleTimer = setTimeout(() => {
+        playerElement.dataset.isMoving = 'false';
+        updateOnlinePlayerSprite(playerElement, false, playerElement.dataset.direction);
+        console.log(`🎬 ${username} switched to idle animation`);
+      }, 200);
     }
     
     // Determine if this is tile-to-tile movement for smooth animation
-    const isTileMovement = movementDistance > 0.8 && movementDistance < 2.0 && !isTeleportation;
+    // Animate any move larger than 0.1 tiles up to 2 tiles as a "tile move"
+    const isTileMovement  = movementDistance > 0.1 && movementDistance < 2.0 && !isTeleportation;
+    const isLongMovement = movementDistance >= 2.0 && movementDistance <= 5.0 && !isTeleportation;
     
     // Reset stationary status when player moves
     const wasStationary = playerElement.dataset.isStationary === 'true';
@@ -1029,6 +1133,12 @@ function handleOnlinePlayerMove(username, position, profile, movementData) {
       // Start smooth tile-to-tile animation
       console.log(`🎬 Starting tile animation for ${username}: ${movementDistance.toFixed(2)} units`);
       animatePlayerTileMovement(playerElement, prevX, prevY, position.x, position.y);
+    } else if (isLongMovement) {
+      // Animate longer moves (2–5 tiles) with duration scaled to distance
+      console.log(`🎬 Starting long move animation for ${username}: ${movementDistance.toFixed(2)} units`);
+      const perTile      = 180; // slightly slower for multi-tile to remain smooth
+      const duration     = perTile * movementDistance;
+      animatePlayerLongMovement(playerElement, prevX, prevY, position.x, position.y, duration);
     } else {
       // For teleportation or small movements, update position immediately
       updateOnlinePlayerPosition(playerElement, !isTeleportation);
@@ -1059,8 +1169,11 @@ function animatePlayerTileMovement(playerElement, fromX, fromY, toX, toY) {
   playerElement.style.transition = 'none'; // Remove CSS transitions during animation
   
   const startTime = performance.now();
-  const duration = 300; // Reduced to 300ms for snappier feel
-  const GRID_SIZE = 32;
+  // Scale duration with distance so 1-tile moves feel instant while longer
+  // moves remain smooth. We clamp to a minimum of 80 ms.
+  const distanceTiles = Math.hypot(toX - fromX, toY - fromY);
+  const duration = Math.max(100, 100 * distanceTiles);
+  const gridSize = window.worldModule?.getGridSize ? window.worldModule.getGridSize() : 32;
   
   // We no longer cache the camera position once at the start. Instead, we
   // compute screen-space coordinates on EVERY frame so the sprite tracks camera
@@ -1085,10 +1198,10 @@ function animatePlayerTileMovement(playerElement, fromX, fromY, toX, toY) {
     const toViewY   = toY   - Math.floor(cameraPos.y);
     
     // Convert to pixel positions in the DOM
-    const fromScreenX = (fromViewX - cameraOffsetX) * GRID_SIZE;
-    const fromScreenY = (fromViewY - cameraOffsetY) * GRID_SIZE;
-    const toScreenX   = (toViewX   - cameraOffsetX) * GRID_SIZE;
-    const toScreenY   = (toViewY   - cameraOffsetY) * GRID_SIZE;
+    const fromScreenX = (fromViewX - cameraOffsetX) * gridSize;
+    const fromScreenY = (fromViewY - cameraOffsetY) * gridSize;
+    const toScreenX   = (toViewX   - cameraOffsetX) * gridSize;
+    const toScreenY   = (toViewY   - cameraOffsetY) * gridSize;
     
     // Interpolate
     const currentX = fromScreenX + (toScreenX - fromScreenX) * easeOut;
@@ -1119,7 +1232,125 @@ function animatePlayerTileMovement(playerElement, fromX, fromY, toX, toY) {
 }
 
 /**
- * Update online player position using the same system as world objects
+ * Update online player sprite for movement state and direction
+ */
+function updateOnlinePlayerSprite(playerElement, isMoving = false, direction = null) {
+  if (!playerElement) return;
+  
+  // Cache current sprite to prevent unnecessary changes
+  const currentSprite = playerElement.style.backgroundImage;
+  
+  // Get player's form data
+  const playerForm = 'human'; // Default to human for online players
+  const playerForms = {
+    human: {
+      idle: '/images/player/human_idle.gif',
+      walk: '/images/player/human_walk.gif',
+      width: 32,
+      height: 32
+    },
+    slime: {
+      sprite: '/images/player/slime.png',
+      width: 32,
+      height: 32
+    }
+  };
+  
+  const formData = playerForms[playerForm] || playerForms.human;
+  
+  // Choose sprite based on movement state
+  let spriteUrl;
+  if (formData.idle && formData.walk) {
+    // Human form with idle/walk animations
+    spriteUrl = isMoving ? formData.walk : formData.idle;
+  } else {
+    // Slime or other forms with single sprite
+    spriteUrl = formData.sprite;
+  }
+  
+  // Only update sprite if it changed to prevent flickering
+  const newSpriteStyle = `url('${spriteUrl}')`;
+  if (currentSprite !== newSpriteStyle) {
+    // Get current grid size for pixel-perfect scaling
+    const gridSize = window.worldModule?.getGridSize ? window.worldModule.getGridSize() : 32;
+    const pixelRatio = calculateOnlinePlayerPixelRatio(gridSize, 32);
+    
+    // Apply sprite with pixel-perfect scaling
+    playerElement.style.backgroundImage = newSpriteStyle;
+    
+    const scaledSize = `${32 * pixelRatio}px`;
+    playerElement.style.backgroundSize = `${scaledSize} ${scaledSize}`;
+  }
+  
+  // Apply facing direction
+  applyOnlinePlayerFacing(playerElement, direction);
+}
+
+// Note: calculateOnlinePlayerPixelRatio function is defined at the bottom of the file
+
+/**
+ * Apply facing direction to online player sprite
+ */
+function applyOnlinePlayerFacing(playerElement, direction) {
+  if (!playerElement || !direction) return;
+  
+  // Determine if call introduces a new horizontal orientation (left or right)
+  const horizontalDir = (direction === 'west' || direction === 'northwest' || direction === 'southwest')
+    ? 'left'
+    : (direction === 'east' || direction === 'northeast' || direction === 'southeast')
+      ? 'right'
+      : null;
+
+  // Update cached horizontal orientation whenever an explicit left/right direction occurs
+  if (horizontalDir) {
+    playerElement.dataset.horizontal = horizontalDir;
+  }
+
+  // Use stored orientation if current direction lacks a horizontal component
+  const persistedHorizontal = playerElement.dataset.horizontal || 'right';
+  const scaleX = (horizontalDir || persistedHorizontal) === 'left' ? -1 : 1;
+
+  // Store current full facing direction (for animation logic elsewhere)
+  playerElement.dataset.facing = direction;
+  
+  // Compose base transform with the decided flip
+  let transform = `scaleX(${scaleX})`;
+  
+  switch (direction) {
+    case 'north':
+      transform += ' translateY(-1px)';
+      break;
+    case 'northeast':
+      transform += ' translate(1px, -1px)';
+      break;
+    case 'east':
+      transform += ' translateX(1px)';
+      break;
+    case 'southeast':
+      transform += ' translate(1px, 1px)';
+      break;
+    case 'south':
+      transform += ' translateY(1px)';
+      break;
+    case 'southwest':
+      transform += ' translate(-1px, 1px)';
+      break;
+    case 'west':
+      transform += ' translateX(-1px)';
+      break;
+    case 'northwest':
+      transform += ' translate(-1px, -1px)';
+      break;
+  }
+  
+  // Only apply if something changed to avoid layout thrashing
+  if (playerElement.style.transform !== transform) {
+    playerElement.style.transform = transform;
+  }
+}
+
+/**
+ * Update online player position using the same simple system as NPCs
  */
 function updateOnlinePlayerPosition(playerElement, smoothMovement = false) {
   if (!playerElement || !window.worldModule) return;
@@ -1129,94 +1360,94 @@ function updateOnlinePlayerPosition(playerElement, smoothMovement = false) {
   const username = playerElement.dataset.username;
   
   if (!isNaN(worldX) && !isNaN(worldY)) {
-    // Use consistent positioning system for all players
-    if (window.worldModule.getCameraPosition) {
-      const cameraPos = window.worldModule.getCameraPosition();
-      const cameraOffsetX = cameraPos.x - Math.floor(cameraPos.x);
-      const cameraOffsetY = cameraPos.y - Math.floor(cameraPos.y);
-      
-      // Calculate new screen position
-      const GRID_SIZE = 32;
-      const viewX = worldX - Math.floor(cameraPos.x);
-      const viewY = worldY - Math.floor(cameraPos.y);
-      
-      const newScreenX = (viewX - cameraOffsetX) * GRID_SIZE;
-      const newScreenY = (viewY - cameraOffsetY) * GRID_SIZE;
-      
-      // Get current position to check if update is needed
-      const currentLeft = parseInt(playerElement.style.left) || 0;
-      const currentTop = parseInt(playerElement.style.top) || 0;
-      
-      // More lenient position threshold to prevent flickering
-      const positionThreshold = smoothMovement ? 1 : 3;
-      
-      // Only update if position actually changed significantly OR if player is potentially invisible
-      const needsPositionUpdate = Math.abs(currentLeft - newScreenX) > positionThreshold || 
-                                   Math.abs(currentTop - newScreenY) > positionThreshold ||
-                                   playerElement.style.display === 'none'; // Force update if currently hidden
-      
-      if (needsPositionUpdate) {
-        //console.log(`📍 Moving player ${username} from (${currentLeft}, ${currentTop}) to (${newScreenX.toFixed(0)}, ${newScreenY.toFixed(0)}) - smooth: ${smoothMovement}`);
-        
-        // Use consistent direct positioning for all players
-        playerElement.style.left = newScreenX + 'px';
-        playerElement.style.top = newScreenY + 'px';
-      }
-      
-      // More generous visibility check to prevent players from disappearing too early
-      const VIEWPORT_COLS = 30;
-      const VIEWPORT_ROWS = 21;
-      const viewX_check = worldX - Math.floor(cameraPos.x);
-      const viewY_check = worldY - Math.floor(cameraPos.y);
-      
-      // Increased visibility bounds for better player visibility (was 2, now 5)
-      const hideBounds = 5; // More generous bounds to prevent premature hiding
-      
-      // Also check if player might be on screen edge - be more forgiving
-      const isNearViewportEdge = viewX_check > -2 && viewX_check < VIEWPORT_COLS + 2 && 
-                                 viewY_check > -2 && viewY_check < VIEWPORT_ROWS + 2;
-      
-      if (viewX_check < -hideBounds || viewX_check > VIEWPORT_COLS + hideBounds || 
-          viewY_check < -hideBounds || viewY_check > VIEWPORT_ROWS + hideBounds) {
-        // Only hide if really far outside viewport
-        if (!isNearViewportEdge) {
-          playerElement.style.display = 'none';
-          //console.log(`👻 Hiding player ${username} - far outside viewport (${viewX_check.toFixed(1)}, ${viewY_check.toFixed(1)})`);
-        } else {
-          // Keep visible if near edge
-          playerElement.style.display = 'block';
-          //console.log(`🔍 Keeping player ${username} visible near viewport edge (${viewX_check.toFixed(1)}, ${viewY_check.toFixed(1)})`);
-        }
-      } else {
-        // Always show players within reasonable bounds
-        playerElement.style.display = 'block';
-        playerElement.style.visibility = 'visible'; // Additional failsafe
-        playerElement.style.opacity = '1'; // Additional failsafe
-        
-        // Uncomment for debugging visibility issues
-        // console.log(`👁️ Player ${username} visible at viewport (${viewX_check.toFixed(1)}, ${viewY_check.toFixed(1)})`);
-      }
-      
-      // Additional failsafe: ensure player is not accidentally hidden by other CSS
-      if (viewX_check >= -hideBounds && viewX_check <= VIEWPORT_COLS + hideBounds &&
-          viewY_check >= -hideBounds && viewY_check <= VIEWPORT_ROWS + hideBounds) {
-        // Force visibility for players that should definitely be visible
-        if (playerElement.style.display === 'none' || playerElement.style.visibility === 'hidden' || playerElement.style.opacity === '0') {
-          console.warn(`⚠️ FAILSAFE: Forcing visibility for player ${username} at (${viewX_check.toFixed(1)}, ${viewY_check.toFixed(1)})`);
-          playerElement.style.display = 'block';
-          playerElement.style.visibility = 'visible';
-          playerElement.style.opacity = '1';
-        }
-      }
-    }
-  } else {
-    console.warn(`⚠️ Invalid position data for player ${username}:`, { worldX, worldY });
+    // Use the SAME positioning system as NPCs (simple camera-relative positioning)
+    const cameraPos = window.worldModule.getCameraPosition();
+    const gridSize = window.worldModule?.getGridSize ? window.worldModule.getGridSize() : 32;
     
-    // Failsafe for invalid position data - don't hide the player, just log the issue
-    if (playerElement.style.display === 'none') {
-      console.warn(`⚠️ FAILSAFE: Player ${username} has invalid position but was hidden - making visible`);
-      playerElement.style.display = 'block';
+    // Simple camera-relative positioning like NPCs - no fractional offset complications
+    const newScreenX = (worldX - cameraPos.x) * gridSize;
+    const newScreenY = (worldY - cameraPos.y) * gridSize;
+    
+    // Store calculated position for stable bubble positioning
+    playerElement.dataset.calculatedX = newScreenX.toString();
+    playerElement.dataset.calculatedY = newScreenY.toString();
+    
+    // Use floating-point comparison so we detect even sub-pixel drift
+    const currentLeft = parseFloat(playerElement.style.left) || 0;
+    const currentTop  = parseFloat(playerElement.style.top)  || 0;
+
+    // When smoothMovement is enabled (camera follow), update every frame by
+    // setting threshold to 0 so we never accumulate visible drift.
+    const positionThreshold = smoothMovement ? 0 : 3;
+    
+    // Only update if position actually changed significantly OR if player is potentially invisible
+    const needsPositionUpdate = Math.abs(currentLeft - newScreenX) > positionThreshold || 
+                                 Math.abs(currentTop - newScreenY) > positionThreshold ||
+                                 playerElement.style.display === 'none';
+    
+    if (needsPositionUpdate) {        
+      // Use simple direct positioning consistent with NPCs
+      playerElement.style.left = newScreenX + 'px';
+      playerElement.style.top = newScreenY + 'px';
     }
+    
+    // More generous visibility check to prevent players from disappearing too early
+    const gameWorldEl = document.querySelector('.game-world');
+    const viewportCols = Math.round(gameWorldEl.offsetWidth / gridSize);
+    const viewportRows = Math.round(gameWorldEl.offsetHeight / gridSize);
+    const viewX_check = worldX - cameraPos.x;
+    const viewY_check = worldY - cameraPos.y;
+    
+    // Increased visibility bounds for better player visibility (was 2, now 5)
+    const hideBounds = 5; // More generous bounds to prevent premature hiding
+    
+    // Also check if player might be on screen edge - be more forgiving
+    const isNearViewportEdge = viewX_check > -2 && viewX_check < viewportCols + 2 && 
+                               viewY_check > -2 && viewY_check < viewportRows + 2;
+    
+    const isVisible = (viewX_check >= -hideBounds && viewX_check <= viewportCols + hideBounds && 
+                       viewY_check >= -hideBounds && viewY_check <= viewportRows + hideBounds) ||
+                      isNearViewportEdge;
+    
+    if (isVisible) {
+      // Make sure player is visible
+      if (playerElement.style.display === 'none') {
+        playerElement.style.display = 'block';
+        console.log(`👁️ ${username} made visible at screen (${newScreenX}, ${newScreenY})`);
+      }
+    } else {
+      // Hide player if they're far off screen
+      if (playerElement.style.display !== 'none') {
+        playerElement.style.display = 'none';
+        console.log(`👁️ ${username} hidden - outside viewport bounds`);
+      }
+    }
+  }
+
+  // Disable left/top transitions during camera-follow updates to prevent
+  // visible lag (remote sprites appeared to "float" behind the terrain).
+  const isMovingNow = playerElement.dataset.isMoving === 'true' || playerElement.dataset.isAnimating === 'true';
+
+  if (smoothMovement) {
+    const isMovingNow = playerElement.dataset.isMoving === 'true' || playerElement.dataset.isAnimating === 'true';
+
+    if (isMovingNow) {
+      // Apply a *tiny* linear transition for smoothness (1 frame @ 60 fps ~= 16 ms)
+      const desired = 'left 0.06s linear, top 0.06s linear';
+      if (playerElement.style.transition !== desired) {
+        playerElement.style.transition = desired;
+      }
+    } else {
+      // Player idle – absolute locking, no transition.
+      if (playerElement.style.transition !== 'none') {
+        playerElement._prevTransition = playerElement.style.transition;
+        playerElement.style.transition = 'none';
+      }
+    }
+  } else if (playerElement._prevTransition && playerElement.style.transition === 'none') {
+    // Restore any previous transition when we're no longer in camera-follow mode
+    playerElement.style.transition = playerElement._prevTransition;
+    delete playerElement._prevTransition;
   }
 }
 
@@ -1226,6 +1457,11 @@ function updateOnlinePlayerPosition(playerElement, smoothMovement = false) {
 function removeOnlinePlayer(username) {
   const playerElement = onlinePlayers.get(username);
   if (playerElement) {
+    // Clean up idle timer
+    if (playerElement._idleTimer) {
+      clearTimeout(playerElement._idleTimer);
+    }
+    
     playerElement.remove();
     onlinePlayers.delete(username);
   }
@@ -1269,6 +1505,7 @@ function showSpeechBubbleForPlayer(username, message, isEmote) {
   speechBubble.style.position = 'absolute';
   speechBubble.style.zIndex = '16'; // Slightly higher than main player to avoid overlap
   speechBubble.style.pointerEvents = 'none';
+  speechBubble.style.transition = 'left 0.08s linear, top 0.08s linear, transform 0.08s linear';
   
   if (isEmote) {
     // Make emotes larger - same as main player
@@ -1278,6 +1515,7 @@ function showSpeechBubbleForPlayer(username, message, isEmote) {
   }
   
   // Add to game world
+  speechBubble.style.transition = 'none';
   gameWorld.appendChild(speechBubble);
   
   // Create tail elements manually - identical to main player
@@ -1312,17 +1550,33 @@ function showSpeechBubbleForPlayer(username, message, isEmote) {
       return; // Bubble or player was removed
     }
     
-    // Calculate position relative to player element
-    const playerLeft = parseInt(playerElement.style.left) || 0;
-    const playerTop = parseInt(playerElement.style.top) || 0;
-    const playerWidth = playerElement.offsetWidth;
+    let bubbleX, bubbleY;
     
-    // Get bubble dimensions to position it properly
-    const bubbleHeight = speechBubble.offsetHeight || 40; // Default height if not measured yet
-    
-    // Position bubble above player, accounting for bubble height so it grows upward
-    const bubbleX = playerLeft + (playerWidth / 2);
-    const bubbleY = playerTop - bubbleHeight - 10; // 10px gap above player, grows upward from here
+    // Use stable calculated position if available for online players
+    if (playerElement.dataset.calculatedX && playerElement.dataset.calculatedY) {
+      const playerLeft = parseInt(playerElement.dataset.calculatedX);
+      const playerTop = parseInt(playerElement.dataset.calculatedY);
+      const playerWidth = playerElement.offsetWidth || (window.worldModule?.getGridSize() || 32);
+      
+      // Get bubble dimensions to position it properly
+      const bubbleHeight = speechBubble.offsetHeight || 40; // Default height if not measured yet
+      
+      // Position bubble above player, accounting for bubble height so it grows upward
+      bubbleX = playerLeft + (playerWidth / 2);
+      bubbleY = playerTop - bubbleHeight - 10; // 10px gap above player, grows upward from here
+    } else {
+      // Fallback to current style-based method for main player
+      const playerLeft = parseInt(playerElement.style.left) || 0;
+      const playerTop = parseInt(playerElement.style.top) || 0;
+      const playerWidth = playerElement.offsetWidth;
+      
+      // Get bubble dimensions to position it properly
+      const bubbleHeight = speechBubble.offsetHeight || 40; // Default height if not measured yet
+      
+      // Position bubble above player, accounting for bubble height so it grows upward
+      bubbleX = playerLeft + (playerWidth / 2);
+      bubbleY = playerTop - bubbleHeight - 10; // 10px gap above player, grows upward from here
+    }
     
     speechBubble.style.left = `${bubbleX}px`;
     speechBubble.style.top = `${bubbleY}px`;
@@ -1364,43 +1618,51 @@ function handleMultiplayerChatMessage(username, message, timestamp, type) {
   // Get player color - handle both own messages and other players' messages
   let playerColor = '#e74c3c'; // Default red for other players
   
-  // Check if this is the current user's own message echoing back from server
-  const currentUserData = getCurrentUser();
-  if (currentUserData && username === currentUserData.username) {
-    // This is our own message echoing back - use our saved color
-    if (userProfile?.settings?.playerColor) {
-      playerColor = userProfile.settings.playerColor;
-    } else {
-      // Fallback to getting color from player character element
-      const playerCharacter = document.getElementById('player-character');
-      if (playerCharacter && playerCharacter.style.backgroundColor) {
-        playerColor = playerCharacter.style.backgroundColor;
+      // Check if this is the current user's own message echoing back from server
+    const currentUserData = getCurrentUser();
+    if (currentUserData && username === currentUserData.username) {
+      // This is our own message echoing back - use our saved color
+      if (userProfile?.settings?.playerColor) {
+        playerColor = userProfile.settings.playerColor;
       } else {
-        playerColor = '#3498db'; // Default blue for own messages
+        // Fallback to getting color from player character element dataset
+        const playerCharacter = document.getElementById('player-character');
+        if (playerCharacter && playerCharacter.dataset.playerColor) {
+          playerColor = playerCharacter.dataset.playerColor;
+        } else if (playerCharacter && playerCharacter.style.backgroundColor && playerCharacter.style.backgroundColor !== 'transparent') {
+          playerColor = playerCharacter.style.backgroundColor;
+        } else {
+          playerColor = '#3498db'; // Default blue for own messages
+        }
+      }
+    } else {
+      // This is another player's message - try to get their color
+      const playerData = onlinePlayers.get(username);
+      if (playerData && playerData.dataset && playerData.dataset.playerColor) {
+        // Get from dataset (preferred for sprites)
+        playerColor = playerData.dataset.playerColor;
+      } else if (playerData && playerData.style && playerData.style.backgroundColor && playerData.style.backgroundColor !== 'transparent') {
+        // Fallback to background color if not transparent
+        playerColor = playerData.style.backgroundColor;
+      }
+      
+      // If we don't have the player element, try to get from multiplayer module
+      if (playerColor === '#e74c3c') {
+        const multiplayerPlayers = getOnlinePlayers();
+        const playerInfo = multiplayerPlayers.find(p => p.username === username);
+        if (playerInfo && playerInfo.profile && playerInfo.profile.settings && playerInfo.profile.settings.playerColor) {
+          playerColor = playerInfo.profile.settings.playerColor;
+        }
       }
     }
-  } else {
-    // This is another player's message - try to get their color
-    const playerData = onlinePlayers.get(username);
-    if (playerData && playerData.style && playerData.style.backgroundColor) {
-      playerColor = playerData.style.backgroundColor;
-    }
-    
-    // If we don't have the player element, try to get from multiplayer module
-    if (playerColor === '#e74c3c') {
-      const multiplayerPlayers = getOnlinePlayers();
-      const playerInfo = multiplayerPlayers.find(p => p.username === username);
-      if (playerInfo && playerInfo.profile && playerInfo.profile.settings && playerInfo.profile.settings.playerColor) {
-        playerColor = playerInfo.profile.settings.playerColor;
-      }
-    }
-  }
   
   // Check if message is just an emote (emoji)
   const isEmote = /^[\p{Emoji_Presentation}\p{Emoji}\uFE0F\u200D]+$/u.test(message.trim());
   
-  // Create colored message for chat
-  const coloredMessage = `<span style="color: ${playerColor}; font-weight: bold;">${username}:</span> ${message}`;
+  // Determine if moderator
+  const isMod = message.startsWith('[MOD]'); // placeholder? No we need flag
+  const crown = type==='mod' ? '👑 ' : '';
+  const coloredMessage = `<span style="color: ${playerColor}; font-weight: bold;">${crown}${username}:</span> ${message}`;
   
   // Add message to chat with multiplayer styling
   addMessage(coloredMessage, 'multiplayer');
@@ -1554,7 +1816,7 @@ function enhanceMovementForMultiplayer() {
     console.log('✅ Movement hooking complete');
   } else {
     console.warn('⚠️ worldModule.movePlayerToTarget not found, retrying in 500ms...');
-    setTimeout(enhanceMovementForMultiplayer, 500);
+    setTimeout(enhanceMovementForMultiplayer, 200);
     return;
   }
   
@@ -1568,14 +1830,14 @@ function enhanceMovementForMultiplayer() {
       clearInterval(positionSyncInterval);
     }
     
-    // Send position updates every 250ms while online (increased frequency for ultra-responsive movement)
+    // Send position updates every 125ms while online (doubled frequency for smoother remote motion)
     positionSyncInterval = setInterval(() => {
       if (isUserOnline()) {
         const currentPosition = getPlayerPosition();
         if (currentPosition && 
             (!lastSentPosition || 
-             Math.abs(lastSentPosition.x - currentPosition.x) > 0.2 || 
-             Math.abs(lastSentPosition.y - currentPosition.y) > 0.2)) {
+             Math.abs(lastSentPosition.x - currentPosition.x) > 0.12 || 
+             Math.abs(lastSentPosition.y - currentPosition.y) > 0.12)) {
           
           console.log(`📡 Position sync: sending (${currentPosition.x.toFixed(2)}, ${currentPosition.y.toFixed(2)})`);
           // Send position sync (more frequent for better responsiveness)
@@ -1590,7 +1852,7 @@ function enhanceMovementForMultiplayer() {
           positionSyncInterval = null;
         }
       }
-    }, 250); // Every 250ms - increased frequency for ultra-responsive movement
+    }, 125); // Every 125ms – doubled frequency
     
     console.log('✅ Position sync interval started');
   }
@@ -1631,8 +1893,8 @@ function enhanceMovementForMultiplayer() {
     if (isUserOnline()) {
       const currentPos = getPlayerPosition();
       if (currentPos && (!lastKnownPosition || 
-          Math.abs(lastKnownPosition.x - currentPos.x) > 0.25 || 
-          Math.abs(lastKnownPosition.y - currentPos.y) > 0.25)) {
+          Math.abs(lastKnownPosition.x - currentPos.x) > 0.12 || 
+          Math.abs(lastKnownPosition.y - currentPos.y) > 0.12)) {
         
         // Send immediate position update during active movement
         sendPlayerMove(currentPos);
@@ -1640,7 +1902,7 @@ function enhanceMovementForMultiplayer() {
         console.log(`🏃 Continuous tracking: (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(2)})`);
       }
     }
-  }, 100); // Every 100ms for ultra-responsive movement detection
+  }, 50); // Every 50ms for even more responsive movement detection
   
   // Store intervals for cleanup if needed
   window.multiplayerIntervals = {
@@ -1902,6 +2164,17 @@ function initializeSettings() {
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
       if (confirm('Are you sure you want to logout?')) {
+        // Proactively close the live WebSocket connection so the server can immediately
+        // broadcast our disconnect before we navigate away or refresh.
+        try {
+          const ws = window.getWebSocket ? window.getWebSocket() : null;
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.close();
+          }
+        } catch (err) {
+          console.warn('Could not close WebSocket gracefully on logout:', err);
+        }
+        
         // Call logout API
         fetch('/api/logout', {
           method: 'POST',
@@ -2038,14 +2311,59 @@ function initializeSettings() {
     customColorInput.addEventListener('input', applyCustomColor);
     customColorInput.addEventListener('change', applyCustomColor);
   }
+
+  // Auto-logout (inactivity) timeout (in minutes)
+  const autoLogoutInput = document.getElementById('auto-logout-minutes');
+  const autoLogoutHint  = document.getElementById('auto-logout-hint');
+  if (autoLogoutInput) {
+    // Load saved value or default to 5
+    if (!userProfile.settings.autoLogoutMinutes) {
+      userProfile.settings.autoLogoutMinutes = 5;
+    }
+    autoLogoutInput.value = userProfile.settings.autoLogoutMinutes;
+
+    const updateHint = () => {
+      const mins = parseInt(autoLogoutInput.value);
+      autoLogoutHint.textContent = ` (logs out after ${mins} minute${mins!==1?'s':''} of inactivity)`;
+    };
+    updateHint();
+
+    autoLogoutInput.addEventListener('change', () => {
+      let val = parseInt(autoLogoutInput.value);
+      if (isNaN(val) || val < 1) val = 1;
+      if (val > 60) val = 60;
+      autoLogoutInput.value = val;
+      userProfile.settings.autoLogoutMinutes = val;
+      saveSettings(userProfile.settings);
+      // Sync to server if online
+      if (isUserOnline()) {
+        fetch(`${API_BASE}/update-settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ settings: { autoLogoutMinutes: val } })
+        }).catch(err=>console.warn('Settings sync failed', err));
+      }
+      updateHint();
+    });
+  }
 }
 
 // Update player character color
 function updatePlayerColor(color) {
   const playerCharacter = document.getElementById('player-character');
   if (playerCharacter) {
-    playerCharacter.style.backgroundColor = color;
-    console.log(`Player color updated to: ${color}`);
+    // Store color in dataset for multiplayer purposes, but don't apply to sprites
+    playerCharacter.dataset.playerColor = color;
+    
+    // Only apply background color if the player is NOT using a sprite
+    if (!playerCharacter.style.backgroundImage || playerCharacter.style.backgroundImage === 'none') {
+      playerCharacter.style.backgroundColor = color;
+      console.log(`Player background color updated to: ${color}`);
+    } else {
+      // Using sprite - keep background transparent
+      playerCharacter.style.backgroundColor = 'transparent';
+      console.log(`Player using sprite - color stored as ${color} but background kept transparent`);
+    }
     
     // Send color update to multiplayer server if online
     if (isUserOnline() && window.sendPlayerColorUpdate) {
@@ -2119,7 +2437,9 @@ function showLocalChatMessage(message) {
     }
     
     const playerCharacter = document.getElementById('player-character');
-    if (playerCharacter && playerCharacter.style.backgroundColor) {
+    if (playerCharacter && playerCharacter.dataset.playerColor) {
+      playerColor = playerCharacter.dataset.playerColor;
+    } else if (playerCharacter && playerCharacter.style.backgroundColor && playerCharacter.style.backgroundColor !== 'transparent') {
       playerColor = playerCharacter.style.backgroundColor;
     }
     
@@ -2173,9 +2493,9 @@ function updateAllOnlinePlayersPositions() {
           return;
         }
         
-        // Update all players using consistent positioning system
-        // console.log(`🔄 Updating player ${username} position with camera`); // Removed verbose logging
-        updateOnlinePlayerPosition(playerElement, false);
+        // Update all players using consistent positioning system with a very low
+        // movement threshold so they remain perfectly locked to the camera.
+        updateOnlinePlayerPosition(playerElement, /*smoothMovement=*/ true);
       }
     });
   }
@@ -2231,12 +2551,14 @@ function performPlayerVisibilityFailsafeCheck() {
       const viewX = worldX - Math.floor(cameraPos.x);
       const viewY = worldY - Math.floor(cameraPos.y);
       
-      const VIEWPORT_COLS = 30;
-      const VIEWPORT_ROWS = 21;
+      // Determine tile pixel size for dynamic viewport calculations
+      const gridSize = window.worldModule?.getGridSize ? window.worldModule.getGridSize() : 32;
+      const viewportCols = Math.round(document.querySelector('.game-world').offsetWidth / gridSize);
+      const viewportRows = Math.round(document.querySelector('.game-world').offsetHeight / gridSize);
       const hideBounds = 5;
       
-      const shouldBeVisible = viewX >= -hideBounds && viewX <= VIEWPORT_COLS + hideBounds &&
-                              viewY >= -hideBounds && viewY <= VIEWPORT_ROWS + hideBounds;
+      const shouldBeVisible = viewX >= -hideBounds && viewX <= viewportCols + hideBounds &&
+                              viewY >= -hideBounds && viewY <= viewportRows + hideBounds;
       
       const isCurrentlyVisible = playerElement.style.display !== 'none' && 
                                 playerElement.style.visibility !== 'hidden' && 
@@ -2277,6 +2599,38 @@ export { initGame, saveGame, userProfile };
 // === Multiplayer HP / Respawn helpers ===
 const onlineHPHideTimers = new Map(); // username -> timer
 
+function positionOnlineHPBar(username) {
+  const playerEl = onlinePlayers.get(username);
+  const bar = onlinePlayerHPBars.get(username);
+  if (!playerEl || !bar) return;
+
+  const gameWorld = document.querySelector('.game-world');
+  if (!gameWorld) return;
+
+  let left, top;
+  
+  // Use stable calculated position if available, otherwise fall back to bounding rect
+  if (playerEl.dataset.calculatedX && playerEl.dataset.calculatedY) {
+    const playerLeft = parseInt(playerEl.dataset.calculatedX);
+    const playerTop = parseInt(playerEl.dataset.calculatedY);
+    const playerWidth = playerEl.offsetWidth || (window.worldModule?.getGridSize() || 32);
+    
+    const barWidth = bar.offsetWidth || 30;
+    left = playerLeft + playerWidth / 2 - barWidth / 2;
+    top = playerTop - 8; // 8px above
+  } else {
+    // Fallback to bounding rect method
+    const playerRect = playerEl.getBoundingClientRect();
+    const worldRect  = gameWorld.getBoundingClientRect();
+
+    const barWidth = bar.offsetWidth || 30;
+    left = playerRect.left + playerRect.width / 2 - barWidth / 2 - worldRect.left;
+    top  = playerRect.top - 8 - worldRect.top; // 8px above
+  }
+
+  bar.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+}
+
 window.updateOnlinePlayerHP = function(username, curHP, maxHP) {
   const playerEl = onlinePlayers.get(username);
   if (!playerEl) {
@@ -2284,15 +2638,14 @@ window.updateOnlinePlayerHP = function(username, curHP, maxHP) {
     pendingOnlineHP.set(username,{curHP,maxHP});
     return;
   }
-  let bar = playerEl.querySelector('.player-health-bar');
+  let bar = onlinePlayerHPBars.get(username);
   if (!bar) {
+    const gameWorld = document.querySelector('.game-world');
+    if (!gameWorld) return;
     bar = document.createElement('div');
-    bar.className = 'player-health-bar';
+    bar.className = 'player-health-bar online-player-hp';
     bar.style.cssText = `
       position: absolute;
-      top: -8px;
-      left: 50%;
-      transform: translateX(-50%);
       width: 30px;
       height: 4px;
       background-color: rgba(0,0,0,0.3);
@@ -2300,21 +2653,27 @@ window.updateOnlinePlayerHP = function(username, curHP, maxHP) {
       overflow: hidden;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.2s;
-      z-index: 20;
+      transition: opacity 0.15s;
+      z-index: 60;
     `;
     const fill = document.createElement('div');
     fill.style.height = '100%';
     bar.appendChild(fill);
-    playerEl.appendChild(bar);
+    gameWorld.appendChild(bar);
+    onlinePlayerHPBars.set(username, bar);
+    console.log(`🆕 Created HP bar for ${username}`);
   }
   const pct = Math.max(0, Math.min(100, (curHP / maxHP) * 100));
   const fill = bar.firstElementChild;
   fill.style.width = `${pct}%`;
   fill.style.backgroundColor = pct > 60 ? '#4CAF50' : pct > 25 ? '#FF9800' : '#F44336';
   bar.style.opacity = '1'; // keep visible for other players
-  // Keep visible indefinitely for other players – skip hide timer
-  return;
+  bar.dataset.lastUpdate = Date.now();
+  
+  positionOnlineHPBar(username);
+  
+  // Ensure the global loop that keeps HP bars in sync with player positions is running
+  startGlobalHPBarLoop();
 };
 
 // Handle respawn packets
@@ -2334,10 +2693,270 @@ window.onPlayerRespawn = function(username, position) {
       // Instantly move visual
       if (window.worldModule?.getCameraPosition) {
         const cam = window.worldModule.getCameraPosition();
-        const grid = window.worldModule.getGridSize();
-        playerEl.style.left = `${(position.x - cam.x) * grid}px`;
-        playerEl.style.top = `${(position.y - cam.y) * grid}px`;
+        const gridSize = window.worldModule.getGridSize();
+        playerEl.style.left = `${(position.x - cam.x) * gridSize}px`;
+        playerEl.style.top = `${(position.y - cam.y) * gridSize}px`;
       }
     }
   }
 };
+
+let hpBarLoopRunning = false;
+function startGlobalHPBarLoop() {
+  if (hpBarLoopRunning) return; // already running
+
+  const FADE_DELAY   = 4000; // ms until fade
+  const REMOVE_DELAY = 8000; // ms until removal
+
+  function loop() {
+    // Stop the loop automatically when no bars remain
+    if (onlinePlayerHPBars.size === 0) {
+      hpBarLoopRunning = false;
+      return;
+    }
+
+    onlinePlayerHPBars.forEach((bar, username) => {
+      positionOnlineHPBar(username);
+
+      const last = Number(bar.dataset.lastUpdate || 0);
+      const age  = Date.now() - last;
+
+      if (age > REMOVE_DELAY) {
+        bar.remove();
+        onlinePlayerHPBars.delete(username);
+        return;
+      }
+
+      bar.style.opacity = age > FADE_DELAY ? '0' : '1';
+    });
+
+    requestAnimationFrame(loop);
+  }
+
+  // Kick off the loop first, then mark running so re-entrance is safe
+  requestAnimationFrame(loop);
+  hpBarLoopRunning = true;
+}
+
+// Skills page navigation functionality
+function initializeSkillsNavigation() {
+  const navButtons = document.querySelectorAll('.skills-nav-btn');
+  const skillsPages = document.querySelectorAll('.skills-page');
+  
+  navButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const pageNumber = button.getAttribute('data-page');
+      
+      // Handle "All" button specially - show modal instead of page
+      if (pageNumber === 'all') {
+        showAllSkillsModal();
+        return;
+      }
+      
+      // Remove active class from all buttons and pages
+      navButtons.forEach(btn => btn.classList.remove('active'));
+      skillsPages.forEach(page => page.classList.remove('active'));
+      
+      // Add active class to clicked button and corresponding page
+      button.classList.add('active');
+      const targetPage = document.getElementById(`skills-page-${pageNumber}`);
+      if (targetPage) {
+        targetPage.classList.add('active');
+      }
+    });
+  });
+  
+  // Initialize modal close functionality
+  initializeAllSkillsModal();
+}
+
+// Initialize the All Skills Modal
+function initializeAllSkillsModal() {
+  const modal = document.getElementById('all-skills-modal');
+  const closeBtn = document.getElementById('close-all-skills');
+  
+  // Close modal when clicking the X button
+  closeBtn.addEventListener('click', () => {
+    hideAllSkillsModal();
+  });
+  
+  // Close modal when clicking outside the content
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      hideAllSkillsModal();
+    }
+  });
+  
+  // Close modal with Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('active')) {
+      hideAllSkillsModal();
+    }
+  });
+}
+
+// Show the All Skills Modal
+function showAllSkillsModal() {
+  const modal = document.getElementById('all-skills-modal');
+  generateAllSkillsModal();
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden'; // Prevent background scrolling
+}
+
+// Hide the All Skills Modal
+function hideAllSkillsModal() {
+  const modal = document.getElementById('all-skills-modal');
+  modal.classList.remove('active');
+  document.body.style.overflow = ''; // Restore scrolling
+  
+  // Reset navigation button states
+  const navButtons = document.querySelectorAll('.skills-nav-btn');
+  const firstPageBtn = document.querySelector('.skills-nav-btn[data-page="1"]');
+  
+  navButtons.forEach(btn => btn.classList.remove('active'));
+  if (firstPageBtn) {
+    firstPageBtn.classList.add('active');
+    
+    // Show first page
+    const skillsPages = document.querySelectorAll('.skills-page');
+    skillsPages.forEach(page => page.classList.remove('active'));
+    const firstPage = document.getElementById('skills-page-1');
+    if (firstPage) {
+      firstPage.classList.add('active');
+    }
+  }
+}
+
+// Generate the All Skills Modal content
+function generateAllSkillsModal() {
+  const megaGrid = document.querySelector('.all-skills-mega-grid');
+  if (!megaGrid) return;
+  
+  // Clear existing content
+  megaGrid.innerHTML = '';
+  
+  // Define the page order for skills display
+  const pageOrder = [1, 2, 3, 4, 5, 6, 7]; // Combat, Gathering, Artisan, Magic, Support, Companion, Misc
+  
+  // Collect skills in UI order by iterating through pages
+  const orderedSkills = [];
+  
+  pageOrder.forEach(pageNum => {
+    const page = document.getElementById(`skills-page-${pageNum}`);
+    if (page) {
+      const skillElements = page.querySelectorAll('.skill');
+      skillElements.forEach(skillElement => {
+        const skillKey = skillElement.getAttribute('data-skill');
+        if (skillKey) {
+          orderedSkills.push([skillKey, skillElement]);
+        }
+      });
+    }
+  });
+  
+  // Create cloned elements for the modal in UI order
+  orderedSkills.forEach(([skillKey, originalElement]) => {
+    const clonedSkill = originalElement.cloneNode(true);
+    megaGrid.appendChild(clonedSkill);
+  });
+}
+
+// Add test archaeology dig sites
+function addTestDigSites() {
+  console.log('Adding test archaeology dig sites...');
+  
+  if (!window.worldModule) {
+    console.error('World module not available for adding dig sites');
+    return;
+  }
+  
+  // Add dig sites on the interactive objects layer (layer 2)
+  const sites = [
+    { type: 'dig_site_ruins', x: 55, y: 45 },
+    { type: 'dig_site_burial', x: 62, y: 38 },
+    { type: 'dig_site_temple', x: 48, y: 52 }
+  ];
+  
+  sites.forEach(site => {
+    // Add to the world layer
+    window.worldModule.setTileOnLayer(2, site.x, site.y, site.type);
+    console.log(`Added ${site.type} at (${site.x}, ${site.y})`);
+  });
+  
+  // Force a world re-render to show the new dig sites
+  if (window.worldModule.forceWorldRerender) {
+    setTimeout(() => {
+      window.worldModule.forceWorldRerender();
+      console.log('Forced world re-render to show dig sites');
+    }, 100);
+  }
+}
+
+// Initialize skills navigation when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  initializeSkillsNavigation();
+});
+
+// Calculate pixel-perfect scaling ratio for online players (same as main player)
+function calculateOnlinePlayerPixelRatio(gridSize, spriteSize) {
+  // Use same logic as main player pixel-perfect scaling
+  const exactRatio = gridSize / spriteSize;
+  
+  // Use better thresholds for pixel-perfect scaling
+  let pixelRatio;
+  if (exactRatio >= 3.0) {
+    pixelRatio = 3;
+  } else if (exactRatio >= 2.0) {
+    pixelRatio = 2;
+  } else {
+    pixelRatio = 1;
+  }
+  
+  console.log(`🎯 Online player pixel ratio: target=${gridSize}px, sprite=${spriteSize}px, exact=${exactRatio.toFixed(2)}, pixel-perfect=${pixelRatio}x`);
+  
+  return pixelRatio;
+}
+
+/**
+ * Animate movement spanning several tiles (2–5) in one smooth interpolation
+ */
+function animatePlayerLongMovement(playerElement, fromX, fromY, toX, toY, duration) {
+  if (!playerElement || !window.worldModule) return;
+
+  playerElement.dataset.isAnimating = 'true';
+  playerElement.style.transition = 'none';
+
+  const startTime = performance.now();
+  const gridSize  = window.worldModule?.getGridSize ? window.worldModule.getGridSize() : 32;
+
+  function step(now) {
+    const elapsed  = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+
+    // Simple easeLinear for predictable pacing
+    const cameraPos = window.worldModule.getCameraPosition();
+    const cameraOffsetX = cameraPos.x - Math.floor(cameraPos.x);
+    const cameraOffsetY = cameraPos.y - Math.floor(cameraPos.y);
+
+    const currentXWorld = fromX + (toX - fromX) * progress;
+    const currentYWorld = fromY + (toY - fromY) * progress;
+
+    const viewX = currentXWorld - Math.floor(cameraPos.x);
+    const viewY = currentYWorld - Math.floor(cameraPos.y);
+
+    const screenX = (viewX - cameraOffsetX) * gridSize;
+    const screenY = (viewY - cameraOffsetY) * gridSize;
+
+    playerElement.style.left = screenX.toFixed(2) + 'px';
+    playerElement.style.top  = screenY.toFixed(2) + 'px';
+
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      playerElement.dataset.isAnimating = 'false';
+      updateOnlinePlayerPosition(playerElement, false);
+    }
+  }
+
+  requestAnimationFrame(step);
+}

@@ -182,6 +182,12 @@ function updateSkillDisplay(skillName, level, animate = false) {
   
   // Update experience bar if it exists
   updateSkillExperienceBar(skillName);
+  
+  // If Hitpoints level changed, refresh HUD/header display to reflect new max HP
+  if (skillName === 'hitpoints' && window.uiModule?.updateHUDHPDisplay) {
+    const currentHP = window.combatModule?.getCurrentHP?.() || level;
+    window.uiModule.updateHUDHPDisplay(currentHP, level);
+  }
 }
 
 // New function to update experience bars for skills

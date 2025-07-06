@@ -4,7 +4,7 @@
  */
 
 // Inventory configuration
-const INVENTORY_SIZE = 28;
+const INVENTORY_SIZE = 40; // 5 columns x 8 rows
 const ITEM_SPAWN_INTERVAL = 5000; // 5 seconds (reduced for testing)
 const MAX_FLOOR_ITEMS = 20;
 const ITEM_DESPAWN_TIME = 300000; // 5 minutes
@@ -531,6 +531,9 @@ function initializeInventory() {
   // Add click handlers for floor items
   setupFloorItemHandlers();
   
+  // Initialize equipment display
+  setTimeout(() => updateEquipmentDisplay(), 100);
+  
   return true;
 }
 
@@ -551,11 +554,6 @@ function createInventoryUI() {
         <div class="inventory-count">
           Items: <span id="inventory-count">0</span>/${INVENTORY_SIZE}
         </div>
-        <div class="test-buttons">
-          <button id="spawn-item-btn" style="padding: 5px 10px; background: #4a7c59; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 5px;">Spawn Item</button>
-          <button id="add-item-btn" style="padding: 5px 10px; background: #7c4a59; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 5px;">Add to Inventory</button>
-          <button id="add-noted-btn" style="padding: 5px 10px; background: #59547c; color: white; border: none; border-radius: 3px; cursor: pointer;">Add Noted Item</button>
-        </div>
       </div>
     </div>
     
@@ -573,32 +571,7 @@ function createInventoryUI() {
   // Setup inventory event handlers
   setupInventoryHandlers();
   
-  // Add manual spawn button for testing
-  const spawnBtn = document.getElementById('spawn-item-btn');
-  if (spawnBtn) {
-    spawnBtn.addEventListener('click', () => {
-      console.log('Manual spawn button clicked');
-      spawnItemNearPlayer();
-    });
-  }
-  
-  // Add manual inventory add button for testing
-  const addBtn = document.getElementById('add-item-btn');
-  if (addBtn) {
-    addBtn.addEventListener('click', () => {
-      console.log('Manual add to inventory button clicked');
-      addRandomItemToInventory();
-    });
-  }
-  
-  // Add manual noted item add button for testing
-  const addNotedBtn = document.getElementById('add-noted-btn');
-  if (addNotedBtn) {
-    addNotedBtn.addEventListener('click', () => {
-      console.log('Manual add noted item button clicked');
-      addNotedItemToInventory();
-    });
-  }
+  // Debug/test buttons removed
   
   // Add shop test buttons
   addShopTestButtons();
@@ -620,8 +593,8 @@ function addInventoryStyles() {
     
     .inventory-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      grid-template-rows: repeat(7, 1fr);
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(8, 1fr);
       gap: 1px;
       background-color: #2a2a2a;
       padding: 3px;
@@ -825,9 +798,9 @@ function addInventoryStyles() {
       border: 2px solid #555;
       border-radius: 8px;
       padding: 20px;
-      width: 900px;
+      width: 1000px; /* widened further so inventory fits without inner scroll */
       max-width: 95vw;
-      max-height: 90vh;
+      max-height: 92vh;
       overflow-x: hidden;
       overflow-y: auto;
     }
@@ -937,7 +910,7 @@ function addInventoryStyles() {
     
     .bank-inventory-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 2px;
       background-color: #2a2a2a;
       padding: 5px;
@@ -1161,7 +1134,7 @@ function addInventoryStyles() {
       padding: 20px;
       width: 900px;
       max-width: 95vw;
-      max-height: 90vh;
+      max-height: 92vh;
       overflow-x: hidden;
       overflow-y: auto;
     }
@@ -1227,17 +1200,16 @@ function addInventoryStyles() {
       text-align: center;
     }
     
-    .shop-grid {
+    .shop-inventory-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 8px; /* Increased from 2px to 8px for better spacing */
+      gap: 8px; /* spacing */
       background-color: #2a2a2a;
-      padding: 8px; /* Increased from 5px to 8px to match the gap */
+      padding: 8px;
       border-radius: 5px;
-      max-height: 480px;
-      overflow-y: hidden;
-      overflow-x: hidden;
-      width: 90%;
+      max-height: 560px; /* allow full 8-row view */
+      overflow: visible; /* no scrollbars */
+      width: 95%;
     }
     
     .shop-slot {
@@ -1313,39 +1285,6 @@ function addInventoryStyles() {
       padding: 1px 3px;
       border-radius: 2px;
       white-space: nowrap;
-    }
-    
-    .shop-inventory-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px; /* Increased from 2px to 8px to match shop grid spacing */
-      background-color: #2a2a2a;
-      padding: 5px; /* Increased from 5px to 8px to match the gap */
-      border-radius: 5px;
-      width: 100%;
-    }
-    
-    .shop-inventory-slot {
-      aspect-ratio: 1;
-      min-width: 0;
-      background-color: #4a4a4a;
-      border: 1px solid #666;
-      border-radius: 3px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    
-    .shop-inventory-slot:hover {
-      background-color: #5a5a5a;
-    }
-    
-    .shop-inventory-slot.occupied {
-      background-color: #2d4a3d;
-      border-color: #4a7c59;
     }
     
     .shop-footer {
@@ -1521,11 +1460,14 @@ function setupInventoryHandlers() {
         useItemOnItem(useMode.selectedSlot, slotIndex);
       }
     } else {
-      // Left click performs the "Use" action (OSRS style)
+      // Left click performs the default action (OSRS style)
       const itemDef = getItemDefinition(item.id);
       if (itemDef && (itemDef.useAction === 'eat' || itemDef.useAction === 'drink' || itemDef.useAction === 'dig')) {
         // For consumable items and tools with direct actions, use directly
         useItem(slotIndex);
+      } else if (itemDef && (itemDef.useAction === 'wield' || itemDef.useAction === 'wear' || itemDef.equipment)) {
+        // For equipment items, equip directly
+        equipItem(slotIndex);
       } else {
         // For other items, enter use mode
         enterUseMode(slotIndex);
@@ -1715,6 +1657,19 @@ function showContextMenu(event, slotIndex) {
       menuItems.push('<div class="context-menu-item" data-action="consume">Drink</div>');
     }
     
+    // Add equip action for equipment items
+    if (itemDef.useAction === 'wield' || itemDef.useAction === 'wear' || itemDef.equipment) {
+      const actionText = itemDef.useAction === 'wear' ? 'Wear' : 'Wield';
+      
+      // For rings, add specific slot options
+      if (itemDef.equipment && itemDef.equipment.slot === 'ring') {
+        menuItems.push(`<div class="context-menu-item" data-action="equip-ring1">${actionText} (Ring Slot 1)</div>`);
+        menuItems.push(`<div class="context-menu-item" data-action="equip-ring2">${actionText} (Ring Slot 2)</div>`);
+      } else {
+        menuItems.push(`<div class="context-menu-item" data-action="equip">${actionText}</div>`);
+      }
+    }
+    
     // Add specific tool actions
     if (item.id && item.id.includes('shovel')) {
       menuItems.push('<div class="context-menu-item" data-action="dig">Dig</div>');
@@ -1798,6 +1753,15 @@ function handleContextAction(action, slotIndex) {
       break;
     case 'dig':
       handleDigAction(slotIndex);
+      break;
+    case 'equip':
+      equipItem(slotIndex);
+      break;
+    case 'equip-ring1':
+      equipItem(slotIndex, 'ring');
+      break;
+    case 'equip-ring2':
+      equipItem(slotIndex, 'ring2');
       break;
   }
 }
@@ -2054,14 +2018,38 @@ function hideTooltip() {
 }
 
 // Add item to inventory
-function addItemToInventory(itemId, quantity = 1) {
-  console.log('[INVENTORY.JS] addItemToInventory called', { itemId, quantity });
+function addItemToInventory(itemId, quantity = 1, noted = false) {
+  console.log('[INVENTORY.JS] addItemToInventory called', { itemId, quantity, noted });
   const itemDef = getItemDefinition(itemId);
   if (!itemDef) return false;
   
+  // If non-stackable and quantity > 1, add individually to empty slots
+  if (!itemDef.stackable && quantity > 1 && !noted) {
+    let success = true;
+    for (let i = 0; i < quantity; i++) {
+      success = addItemToInventory(itemId, 1, false) && success;
+    }
+    return success;
+  }
+  
+  // Handle noted items (treated as stackable stacks regardless of base item)
+  if (noted) {
+    // Try to find existing noted stack
+    const existingNoted = playerInventory.findIndex(it => it && it.id === itemId && isItemNoted(it));
+    if (existingNoted !== -1) {
+      playerInventory[existingNoted].quantity = (playerInventory[existingNoted].quantity || 1) + quantity;
+      updateInventoryDisplay();
+      if (window.syncInventoryWithServer && window.isUserOnline && window.isUserOnline()) {
+        window.syncInventoryWithServer(playerInventory);
+      }
+      return true;
+    }
+    return addCustomItemToInventory(itemId, quantity, { noted: true, baseItemId: itemId });
+  }
+  
   // Check if item is stackable and already exists
   if (itemDef.stackable) {
-    const existingSlot = playerInventory.findIndex(item => item && item.id === itemId);
+    const existingSlot = playerInventory.findIndex(item => item && item.id === itemId && !isItemNoted(item));
     if (existingSlot !== -1) {
       playerInventory[existingSlot].quantity = (playerInventory[existingSlot].quantity || 1) + quantity;
       updateInventoryDisplay();
@@ -2114,7 +2102,7 @@ function addCustomItemToInventory(itemId, quantity = 1, customProperties = {}) {
   // Create custom item with additional properties
   const customItem = {
     id: itemId,
-    quantity: itemDef.stackable ? quantity : 1,
+    quantity: (itemDef.stackable || customProperties.noted) ? quantity : 1,
     ...customProperties  // Add custom properties like description, name, author, etc.
   };
   
@@ -2168,6 +2156,11 @@ function removeItemFromInventory(slotIndex) {
 
 // Update inventory display
 function updateInventoryDisplay() {
+  // Auto-fix: ensure non-stackable items are not shown as stacks before rendering
+  if (typeof ensureInventoryIntegrity === 'function') {
+    ensureInventoryIntegrity();
+  }
+  
   const inventoryGrid = document.getElementById('inventory-grid');
   const inventoryCount = document.getElementById('inventory-count');
   
@@ -4594,73 +4587,80 @@ function getItemBaseValue(itemId) {
 
 // Calculate buy price from shop
 function calculateBuyPrice(shop, itemId, quantity = 1) {
-  // Try to find stock for this item - could be base item or custom item
-  let stockInfo = shop.currentStock[itemId];
-  
-  // If not found directly, look for custom items with this baseItemId
+  // Retrieve stock for the item (could be custom stock)
+  let stockInfo = shop.currentStock?.[itemId];
+
+  // If not found directly, look for custom items that reference this base id
   if (!stockInfo) {
-    for (const [stockKey, stock] of Object.entries(shop.currentStock)) {
-      if (stock.baseItemId === itemId) {
+    for (const stock of Object.values(shop.currentStock || {})) {
+      if (stock?.baseItemId === itemId) {
         stockInfo = stock;
         break;
       }
     }
   }
-  
+
   if (!stockInfo) return 0;
-  
-  const baseValue = getItemBaseValue(itemId);
-  const currentStock = stockInfo.quantity;
-  const defaultStock = shop.defaultStock[itemId] ? shop.defaultStock[itemId].maxQuantity : stockInfo.maxQuantity;
-  
+
+  // ---- Numeric fall-backs to avoid NaN ----
+  const baseValue        = Number(getItemBaseValue(itemId)) || 1;
+  const buyMultiplier    = (typeof shop.buyMultiplier === 'number' && isFinite(shop.buyMultiplier)) ? shop.buyMultiplier : 1;
+  const priceChangeRate  = (typeof shop.priceChangeRate === 'number' && isFinite(shop.priceChangeRate)) ? shop.priceChangeRate : 0;
+  const currentStock     = Number(stockInfo.quantity) || 0;
+  const defaultStock     = (
+    shop.defaultStock?.[itemId]?.maxQuantity ??
+    stockInfo.maxQuantity ??
+    currentStock
+  );
+
+  // Unlimited shops have a simple linear price
   if (shop.type === 'unlimited') {
-    // Unlimited shops have fixed prices
-    return baseValue * shop.buyMultiplier * quantity;
+    return Math.max(1, Math.floor(baseValue * buyMultiplier * quantity));
   }
-  
+
   let totalPrice = 0;
   for (let i = 0; i < quantity; i++) {
     const stockAfterPurchase = currentStock - i;
-    const stockDifference = Math.max(0, defaultStock - stockAfterPurchase);
-    const priceMultiplier = shop.buyMultiplier + (stockDifference * shop.priceChangeRate);
+    const stockDifference    = Math.max(0, defaultStock - stockAfterPurchase);
+    const priceMultiplier    = buyMultiplier + (stockDifference * priceChangeRate);
     totalPrice += Math.floor(baseValue * priceMultiplier);
   }
-  
-  return Math.max(1, totalPrice); // Minimum 1 coin
+
+  return Math.max(1, totalPrice); // At least 1 coin
 }
 
 // Calculate sell price to shop
 function calculateSellPrice(shop, itemId, quantity = 1) {
-  const baseValue = getItemBaseValue(itemId);
-  const currentStock = shop.currentStock[itemId] ? shop.currentStock[itemId].quantity : 0;
-  const defaultStock = shop.defaultStock[itemId] ? shop.defaultStock[itemId].maxQuantity : 0;
-  
+  // ---- Numeric fall-backs to avoid NaN ----
+  const baseValue       = Number(getItemBaseValue(itemId)) || 1;
+  const sellMultiplier  = (typeof shop.sellMultiplier === 'number' && isFinite(shop.sellMultiplier)) ? shop.sellMultiplier : 0.6;
+  const priceChangeRate = (typeof shop.priceChangeRate === 'number' && isFinite(shop.priceChangeRate)) ? shop.priceChangeRate : 0;
+
+  const currentStock = Number(shop.currentStock?.[itemId]?.quantity) || 0;
+  const defaultStock = Number(shop.defaultStock?.[itemId]?.maxQuantity) || 0;
+
   if (shop.type === 'unlimited') {
-    // Unlimited shops have fixed sell prices
-    return Math.floor(baseValue * shop.sellMultiplier * quantity);
+    return Math.max(1, Math.floor(baseValue * sellMultiplier * quantity));
   }
-  
+
   let totalPrice = 0;
   for (let i = 0; i < quantity; i++) {
     const stockAfterSale = currentStock + i;
     let priceMultiplier;
-    
-    if (shop.type === 'specialty' && shop.defaultStock[itemId]) {
-      // Specialty shops use their max stock as reference
+
+    if (shop.type === 'specialty' && shop.defaultStock?.[itemId]) {
       const stockDifference = stockAfterSale - defaultStock;
-      priceMultiplier = shop.sellMultiplier - (stockDifference * shop.priceChangeRate);
+      priceMultiplier = sellMultiplier - (stockDifference * priceChangeRate);
     } else {
-      // General stores
       const stockDifference = stockAfterSale;
-      priceMultiplier = shop.sellMultiplier - (stockDifference * shop.priceChangeRate);
+      priceMultiplier = sellMultiplier - (stockDifference * priceChangeRate);
     }
-    
-    // Minimum 10% of item value (OSRS rule)
-    priceMultiplier = Math.max(0.1, priceMultiplier);
+
+    priceMultiplier = Math.max(0.1, priceMultiplier); // Min 10% of value
     totalPrice += Math.floor(baseValue * priceMultiplier);
   }
-  
-  return Math.max(1, totalPrice); // Minimum 1 coin
+
+  return Math.max(1, totalPrice);
 }
 
 // Clear cached shop interface state when reopening
@@ -4768,7 +4768,7 @@ function createShopInterface() {
         <div class="shop-section">
           <div class="shop-section-title">Shop Stock</div>
           <div class="shop-grid" id="shop-grid">
-            ${Array(40).fill().map((_, i) => 
+            ${Array(56).fill().map((_, i) => 
               `<div class="shop-slot" data-slot="${i}"></div>`
             ).join('')}
           </div>
@@ -5202,6 +5202,49 @@ function buyItemFromShop(itemId, quantity) {
   updateTransactionInfo();
   
   showNotification(`Bought ${availableQuantity} ${itemDef.name} for ${totalCost} coins`, 'success');
+  
+  // Safety: ensure non-stackable items were not accidentally stacked (can happen in some bulk-buy scenarios)
+  if (!itemDef.stackable) {
+    splitNonStackableStacks(itemId);
+    // Force a shop UI refresh so slot indices and context menus match new item positions
+    if (typeof refreshShopInterface === 'function') {
+      refreshShopInterface();
+    }
+  }
+}
+
+/**
+ * Ensures that any non-stackable items with quantity > 1 are split into separate slots.
+ * This prevents accidental stacking when bulk-buying or receiving items from other sources.
+ */
+function splitNonStackableStacks(itemId) {
+  const itemDef = getItemDefinition(itemId);
+  if (!itemDef || itemDef.stackable) return; // Only handle genuine non-stackables
+
+  // Iterate over inventory slots, splitting stacks when found
+  for (let i = 0; i < playerInventory.length; i++) {
+    const item = playerInventory[i];
+    if (item && item.id === itemId && !isItemNoted(item) && (item.quantity || 1) > 1) {
+      let qty = item.quantity || 1;
+      // Keep one in the current slot
+      item.quantity = 1;
+      qty--; // Remaining to distribute
+
+      while (qty > 0) {
+        const emptySlot = playerInventory.findIndex(slot => !slot);
+        if (emptySlot === -1) {
+          // No free slot – aggregate the rest back into this stack to avoid data loss
+          item.quantity += qty;
+          break;
+        }
+        playerInventory[emptySlot] = { id: itemId, quantity: 1 };
+        qty--;
+      }
+    }
+  }
+
+  // Refresh UI after potential changes
+  updateInventoryDisplay();
 }
 
 // Sell item to shop
@@ -5531,8 +5574,8 @@ function sellMultipleNonStackableItems(itemId, maxQuantity) {
     let processed = 0;
     let itemsSent = 0;
     
-    // Find all inventory slots containing this item (non-noted only) and send individual sell requests
-    for (let i = 0; i < INVENTORY_SIZE && processed < maxQuantity; i++) {
+    // Find all inventory slots containing this item (non-noted only) starting from the END so slot indices remain stable
+    for (let i = INVENTORY_SIZE - 1; i >= 0 && processed < maxQuantity; i--) {
       const item = playerInventory[i];
       if (item && item.id === itemId && !isItemNoted(item)) {
         const quantityToSell = Math.min(item.quantity || 1, maxQuantity - processed);
@@ -6081,7 +6124,9 @@ if (typeof window !== 'undefined') {
     removeFloorItemFromDisplay: removeFloorItemFromDisplay,
     isItemNoted: isItemNoted,
     syncShopsFromServer: syncShopsFromServer,
-    refreshShopInterface: refreshShopInterface
+    refreshShopInterface: refreshShopInterface,
+    ensureInventoryIntegrity: ensureInventoryIntegrity,
+    splitNonStackableStacks: splitNonStackableStacks
   };
   
   console.log('✅ Floor item functions exposed through window.inventoryModuleFunctions');
@@ -6111,6 +6156,8 @@ if (typeof window !== 'undefined') {
     window.inventoryModule.updateShopInventoryDisplay = updateShopInventoryDisplay;
     window.inventoryModule.updateShopDisplay = updateShopDisplay;
     window.inventoryModule.refreshShopInterface = refreshShopInterface;
+    window.inventoryModule.ensureInventoryIntegrity = ensureInventoryIntegrity;
+    window.inventoryModule.splitNonStackableStacks = splitNonStackableStacks;
     
     console.log('✅ Floor item functions in inventoryModule updated');
     console.log('✅ Shop interface state and functions exposed to inventoryModule');
@@ -6170,4 +6217,310 @@ if (typeof window !== 'undefined') {
   setInterval(checkShopState, 1000);
   
   console.log('✅ Shop inventory auto-refresh system initialized');
+}
+
+// Equip an item from inventory
+function equipItem(slotIndex, specificSlot = null) {
+  const item = playerInventory[slotIndex];
+  if (!item) return;
+
+  const itemDef = getItemDefinition(item.id);
+  if (!itemDef || !itemDef.equipment) {
+    showNotification(`${itemDef?.name || 'This item'} cannot be equipped.`, 'error');
+    return;
+  }
+
+  // Check requirements
+  const profile = window.userModule?.getProfile();
+  if (!profile) {
+    showNotification('Unable to access player profile.', 'error');
+    return;
+  }
+
+  if (itemDef.equipment.requirements) {
+    for (const [skill, level] of Object.entries(itemDef.equipment.requirements)) {
+      const playerLevel = profile.skills?.[skill] || 1;
+      if (playerLevel < level) {
+        showNotification(`You need level ${level} ${skill} to equip this item.`, 'error');
+        return;
+      }
+    }
+  }
+
+  const slot = itemDef.equipment.slot;
+  if (!slot) {
+    showNotification(`${itemDef.name} has no equipment slot defined.`, 'error');
+    return;
+  }
+
+  // Initialize equipment object if it doesn't exist
+  if (!profile.equipment) {
+    profile.equipment = {
+      helmet: null,
+      amulet: null,
+      arrows: null,
+      weapon: null,
+      body: null,
+      shield: null,
+      legs: null,
+      gloves: null,
+      boots: null,
+      cape: null,
+      ring: null,
+      ring2: null
+    };
+  }
+
+  // Handle ring slot selection
+  let targetSlot = slot;
+  if (slot === 'ring') {
+    if (specificSlot === 'ring' || specificSlot === 'ring2') {
+      targetSlot = specificSlot;
+    } else {
+      // Default behavior: use first empty slot, or first slot if both occupied
+      if (!profile.equipment.ring) {
+        targetSlot = 'ring';
+      } else if (!profile.equipment.ring2) {
+        targetSlot = 'ring2';
+      } else {
+        // Both ring slots occupied, replace first ring
+        targetSlot = 'ring';
+      }
+    }
+  }
+
+  // Handle arrow stacking specially
+  if (targetSlot === 'arrows') {
+    // Check if same arrow type is already equipped
+    if (profile.equipment[targetSlot] && profile.equipment[targetSlot].id === item.id) {
+      // Stack the arrows
+      const currentQuantity = profile.equipment[targetSlot].quantity || 1;
+      const newQuantity = item.quantity || 1;
+      profile.equipment[targetSlot].quantity = currentQuantity + newQuantity;
+
+      // Remove FULL stack from inventory, not just one
+      playerInventory[slotIndex] = null;
+      updateInventoryDisplay();
+
+      // Sync with server if online
+      if (window.syncInventoryWithServer && window.isUserOnline && window.isUserOnline()) {
+        window.syncInventoryWithServer(playerInventory);
+      }
+
+      showNotification(`You add ${newQuantity} arrows to your equipped stack (${profile.equipment[targetSlot].quantity} total).`, 'success');
+    } else {
+      // Different arrow type or empty slot - unequip existing first
+      if (profile.equipment[targetSlot]) {
+        const unequippedItem = profile.equipment[targetSlot];
+        // Add unequipped arrows back to inventory
+        if (!addItemToInventory(unequippedItem.id, unequippedItem.quantity || 1)) {
+          // Inventory full
+          showNotification('Your inventory is full!', 'error');
+          return;
+        }
+      }
+
+      // Equip the new arrows with full quantity
+      profile.equipment[targetSlot] = {
+        id: item.id,
+        quantity: item.quantity || 1
+      };
+
+      // Remove FULL stack from inventory
+      playerInventory[slotIndex] = null;
+      updateInventoryDisplay();
+
+      if (window.syncInventoryWithServer && window.isUserOnline && window.isUserOnline()) {
+        window.syncInventoryWithServer(playerInventory);
+      }
+
+      const actionText = itemDef.useAction === 'wear' ? 'wear' : 'wield';
+      showNotification(`You ${actionText} the ${itemDef.name} (${item.quantity || 1}).`, 'success');
+    }
+  } else {
+    // Regular equipment handling
+    // Unequip existing item in the slot if any
+    if (profile.equipment[targetSlot]) {
+      const unequippedItem = profile.equipment[targetSlot];
+      
+      // Add unequipped item back to inventory
+      if (!addItemToInventory(unequippedItem.id, unequippedItem.quantity || 1)) {
+        // Inventory full
+        showNotification('Your inventory is full!', 'error');
+        return;
+      }
+    }
+
+    // Equip the new item
+    profile.equipment[targetSlot] = { ...item };
+    removeItemFromInventory(slotIndex);
+    
+    const actionText = itemDef.useAction === 'wear' ? 'wear' : 'wield';
+    showNotification(`You ${actionText} the ${itemDef.name}.`, 'success');
+  }
+  
+  // Update equipment display
+  updateEquipmentDisplay();
+  
+  // Update combat stats if combat module is available
+  if (window.combatModule?.updateCombatStats) {
+    window.combatModule.updateCombatStats();
+  }
+  
+  // Save profile
+  if (window.userModule?.saveProfile) {
+    window.userModule.saveProfile();
+  }
+}
+
+// Update equipment display
+function updateEquipmentDisplay() {
+  const profile = window.userModule?.getProfile();
+  if (!profile) return;
+
+  // Initialize equipment object if it doesn't exist
+  if (!profile.equipment) {
+    profile.equipment = {
+      helmet: null,
+      amulet: null,
+      arrows: null,
+      weapon: null,
+      body: null,
+      shield: null,
+      legs: null,
+      gloves: null,
+      boots: null,
+      cape: null,
+      ring: null,
+      ring2: null
+    };
+  }
+
+  // Update each equipment slot
+  Object.entries(profile.equipment).forEach(([slotName, equippedItem]) => {
+    const slotElement = document.querySelector(`.equipment-slot[data-slot="${slotName}"]`);
+    if (!slotElement) return;
+
+    // Remove existing event listeners
+    slotElement.replaceWith(slotElement.cloneNode(true));
+    const newSlotElement = document.querySelector(`.equipment-slot[data-slot="${slotName}"]`);
+
+    if (equippedItem) {
+      const itemDef = getItemDefinition(equippedItem.id);
+      if (itemDef) {
+        newSlotElement.classList.remove('empty');
+        newSlotElement.classList.add('equipped');
+        // Show quantity for stackable items like arrows
+        const quantity = equippedItem.quantity || 1;
+        let quantityText = '';
+        // Always show count for arrows, or for any stackable item with more than 1
+        const isArrow = equippedItem.id && equippedItem.id.includes('_arrow');
+        if (isArrow || quantity > 1) {
+          quantityText = ` (${quantity})`;
+        }
+        
+        newSlotElement.innerHTML = `
+          <span class="slot-icon">${itemDef.icon}</span>
+          <span class="slot-name">${itemDef.name}${quantityText}</span>
+        `;
+        newSlotElement.title = `${itemDef.name}${quantityText}: ${itemDef.description}`;
+        
+        // Add click handler to unequip
+        newSlotElement.addEventListener('click', () => unequipItem(slotName));
+      }
+    } else {
+      newSlotElement.classList.remove('equipped');
+      newSlotElement.classList.add('empty');
+      // Restore default slot content
+      const slotIcons = {
+        helmet: '⛑️',
+        amulet: '📿',
+        arrows: '🏹',
+        weapon: '⚔️',
+        body: '🛡️',
+        shield: '🛡️',
+        legs: '👖',
+        gloves: '🧤',
+        boots: '👢',
+        cape: '🧥',
+        ring: '💍',
+        ring2: '💍'
+      };
+      const slotNames = {
+        helmet: 'Helmet',
+        amulet: 'Amulet',
+        arrows: 'Arrows',
+        weapon: 'Weapon',
+        body: 'Body',
+        shield: 'Shield',
+        legs: 'Legs',
+        gloves: 'Gloves',
+        boots: 'Boots',
+        cape: 'Cape',
+        ring: 'Ring',
+        ring2: 'Ring'
+      };
+      newSlotElement.innerHTML = `
+        <span class="slot-icon">${slotIcons[slotName] || '📦'}</span>
+        <span class="slot-name">${slotNames[slotName] || slotName}</span>
+      `;
+      newSlotElement.title = slotNames[slotName] || slotName;
+    }
+  });
+}
+
+// Unequip an item from equipment slot
+function unequipItem(slotName) {
+  const profile = window.userModule?.getProfile();
+  if (!profile?.equipment?.[slotName]) return;
+
+  const equippedItem = profile.equipment[slotName];
+  
+  // Add item back to inventory
+  if (!addItemToInventory(equippedItem.id, equippedItem.quantity || 1)) {
+    showNotification('Your inventory is full!', 'error');
+    return;
+  }
+
+  // Remove from equipment
+  profile.equipment[slotName] = null;
+  
+  const itemDef = getItemDefinition(equippedItem.id);
+  showNotification(`You unequip the ${itemDef?.name || 'item'}.`, 'info');
+  
+  // Update displays
+  updateEquipmentDisplay();
+  
+  // Update combat stats if combat module is available
+  if (window.combatModule?.updateCombatStats) {
+    window.combatModule.updateCombatStats();
+  }
+  
+  // Save profile
+  if (window.userModule?.saveProfile) {
+    window.userModule.saveProfile();
+  }
+}
+
+/**
+ * Scan the entire inventory and make sure no non-stackable item has quantity > 1.
+ * If such a stack exists (e.g. after a bulk purchase), it will be fanned out into
+ * separate slots using splitNonStackableStacks.
+ */
+function ensureInventoryIntegrity() {
+  let changed = false;
+  for (const slot of playerInventory) {
+    if (!slot) continue;
+    if (isItemNoted(slot)) continue; // noted items allowed to stack
+    const def = getItemDefinition(slot.id);
+    if (!def || def.stackable) continue;
+    if ((slot.quantity || 1) > 1) {
+      splitNonStackableStacks(slot.id);
+      changed = true;
+    }
+  }
+  // If inventory was altered and we're online, send sync to server
+  if (changed && window.isUserOnline && window.isUserOnline() && window.syncInventoryWithServer) {
+    window.syncInventoryWithServer(playerInventory);
+  }
 }

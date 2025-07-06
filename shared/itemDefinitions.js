@@ -1257,6 +1257,128 @@ const itemDefinitions = {
     buyable: true
   },
 
+  // Arrows - Stackable ammunition
+  bronze_arrow: {
+    id: 'bronze_arrow',
+    name: 'Bronze Arrow',
+    icon: '🏹',
+    type: 'ammunition',
+    description: 'Basic bronze-tipped arrows for ranged combat.',
+    stackable: true,
+    value: 2,
+    buyable: true,
+    equipment: {
+      slot: 'arrows',
+      combatStats: {
+        rangedAttack: 1,
+        rangedStrength: 7
+      },
+      requirements: {
+        ranged: 1
+      }
+    }
+  },
+  iron_arrow: {
+    id: 'iron_arrow',
+    name: 'Iron Arrow',
+    icon: '🏹',
+    type: 'ammunition',
+    description: 'Sturdy iron-tipped arrows.',
+    stackable: true,
+    value: 4,
+    buyable: true,
+    equipment: {
+      slot: 'arrows',
+      combatStats: {
+        rangedAttack: 3,
+        rangedStrength: 10
+      },
+      requirements: {
+        ranged: 10
+      }
+    }
+  },
+  steel_arrow: {
+    id: 'steel_arrow',
+    name: 'Steel Arrow',
+    icon: '🏹',
+    type: 'ammunition',
+    description: 'Sharp steel-tipped arrows.',
+    stackable: true,
+    value: 8,
+    buyable: true,
+    equipment: {
+      slot: 'arrows',
+      combatStats: {
+        rangedAttack: 5,
+        rangedStrength: 16
+      },
+      requirements: {
+        ranged: 20
+      }
+    }
+  },
+  mithril_arrow: {
+    id: 'mithril_arrow',
+    name: 'Mithril Arrow',
+    icon: '🏹',
+    type: 'ammunition',
+    description: 'Lightweight mithril-tipped arrows.',
+    stackable: true,
+    value: 15,
+    buyable: true,
+    equipment: {
+      slot: 'arrows',
+      combatStats: {
+        rangedAttack: 8,
+        rangedStrength: 22
+      },
+      requirements: {
+        ranged: 30
+      }
+    }
+  },
+  adamantite_arrow: {
+    id: 'adamantite_arrow',
+    name: 'Adamantite Arrow',
+    icon: '🏹',
+    type: 'ammunition',
+    description: 'Durable adamantite-tipped arrows.',
+    stackable: true,
+    value: 30,
+    buyable: true,
+    equipment: {
+      slot: 'arrows',
+      combatStats: {
+        rangedAttack: 12,
+        rangedStrength: 31
+      },
+      requirements: {
+        ranged: 40
+      }
+    }
+  },
+  runite_arrow: {
+    id: 'runite_arrow',
+    name: 'Runite Arrow',
+    icon: '🏹',
+    type: 'ammunition',
+    description: 'The finest runite-tipped arrows.',
+    stackable: true,
+    value: 60,
+    buyable: true,
+    equipment: {
+      slot: 'arrows',
+      combatStats: {
+        rangedAttack: 18,
+        rangedStrength: 49
+      },
+      requirements: {
+        ranged: 50
+      }
+    }
+  },
+
   // Fletching bows - Non-stackable
   shortbow: {
     id: 'shortbow',
@@ -1266,7 +1388,17 @@ const itemDefinitions = {
     description: 'A basic shortbow.',
     stackable: false,
     value: 25,
-    buyable: false
+    buyable: false,
+    equipment: {
+      slot: 'weapon',
+      combatStats: {
+        rangedAttack: 2,
+        attackSpeed: 5
+      },
+      requirements: {
+        ranged: 1
+      }
+    }
   },
   longbow: {
     id: 'longbow',
@@ -1276,7 +1408,17 @@ const itemDefinitions = {
     description: 'A basic longbow.',
     stackable: false,
     value: 50,
-    buyable: false
+    buyable: false,
+    equipment: {
+      slot: 'weapon',
+      combatStats: {
+        rangedAttack: 5,
+        attackSpeed: 6
+      },
+      requirements: {
+        ranged: 1
+      }
+    }
   },
   oak_shortbow: {
     id: 'oak_shortbow',
@@ -1286,7 +1428,17 @@ const itemDefinitions = {
     description: 'A sturdy oak shortbow.',
     stackable: false,
     value: 75,
-    buyable: false
+    buyable: false,
+    equipment: {
+      slot: 'weapon',
+      combatStats: {
+        rangedAttack: 8,
+        attackSpeed: 5
+      },
+      requirements: {
+        ranged: 5
+      }
+    }
   },
   oak_longbow: {
     id: 'oak_longbow',
@@ -1296,7 +1448,17 @@ const itemDefinitions = {
     description: 'A sturdy oak longbow.',
     stackable: false,
     value: 150,
-    buyable: false
+    buyable: false,
+    equipment: {
+      slot: 'weapon',
+      combatStats: {
+        rangedAttack: 12,
+        attackSpeed: 6
+      },
+      requirements: {
+        ranged: 5
+      }
+    }
   },
   willow_shortbow: {
     id: 'willow_shortbow',
@@ -1306,7 +1468,17 @@ const itemDefinitions = {
     description: 'A flexible willow shortbow.',
     stackable: false,
     value: 200,
-    buyable: false
+    buyable: false,
+    equipment: {
+      slot: 'weapon',
+      combatStats: {
+        rangedAttack: 15,
+        attackSpeed: 5
+      },
+      requirements: {
+        ranged: 20
+      }
+    }
   },
   willow_longbow: {
     id: 'willow_longbow',
@@ -1316,7 +1488,17 @@ const itemDefinitions = {
     description: 'A flexible willow longbow.',
     stackable: false,
     value: 400,
-    buyable: false
+    buyable: false,
+    equipment: {
+      slot: 'weapon',
+      combatStats: {
+        rangedAttack: 20,
+        attackSpeed: 6
+      },
+      requirements: {
+        ranged: 20
+      }
+    }
   },
 
   // Additional items from inventory.js that were missing
@@ -2679,7 +2861,18 @@ const itemDefinitions = {
     category: 'weapons',
     requirements: { attack: 1 },
     value: 150,
-    buyable: true
+    buyable: true,
+    equipment: {
+      slot: 'weapon',
+      combatStats: {
+        meleeAttack: 4,
+        meleeStrength: 3,
+        attackSpeed: 4
+      },
+      requirements: {
+        attack: 1
+      }
+    }
   },
   'iron_sword': {
     id: 'iron_sword',
@@ -2692,7 +2885,18 @@ const itemDefinitions = {
     category: 'weapons',
     requirements: { attack: 10 },
     value: 400,
-    buyable: true
+    buyable: true,
+    equipment: {
+      slot: 'weapon',
+      combatStats: {
+        meleeAttack: 10,
+        meleeStrength: 9,
+        attackSpeed: 4
+      },
+      requirements: {
+        attack: 10
+      }
+    }
   },
   'steel_sword': {
     id: 'steel_sword',
@@ -2705,7 +2909,18 @@ const itemDefinitions = {
     category: 'weapons',
     requirements: { attack: 20 },
     value: 800,
-    buyable: true
+    buyable: true,
+    equipment: {
+      slot: 'weapon',
+      combatStats: {
+        meleeAttack: 21,
+        meleeStrength: 20,
+        attackSpeed: 4
+      },
+      requirements: {
+        attack: 20
+      }
+    }
   },
   'bronze_shield': {
     id: 'bronze_shield',
@@ -2718,7 +2933,18 @@ const itemDefinitions = {
     category: 'armor',
     requirements: { defence: 1 },
     value: 120,
-    buyable: true
+    buyable: true,
+    equipment: {
+      slot: 'shield',
+      combatStats: {
+        meleeDefence: 6,
+        rangedDefence: 4,
+        magicDefence: -3
+      },
+      requirements: {
+        defence: 1
+      }
+    }
   },
   'iron_shield': {
     id: 'iron_shield',
@@ -2731,7 +2957,18 @@ const itemDefinitions = {
     category: 'armor',
     requirements: { defence: 10 },
     value: 300,
-    buyable: true
+    buyable: true,
+    equipment: {
+      slot: 'shield',
+      combatStats: {
+        meleeDefence: 16,
+        rangedDefence: 12,
+        magicDefence: -6
+      },
+      requirements: {
+        defence: 10
+      }
+    }
   },
   'leather_armor': {
     id: 'leather_armor',
@@ -2744,7 +2981,18 @@ const itemDefinitions = {
     category: 'armor',
     requirements: { defence: 1 },
     value: 200,
-    buyable: true
+    buyable: true,
+    equipment: {
+      slot: 'body',
+      combatStats: {
+        meleeDefence: 7,
+        rangedDefence: 8,
+        magicDefence: -2
+      },
+      requirements: {
+        defence: 1
+      }
+    }
   },
   'mana_potion': {
     id: 'mana_potion',
@@ -2781,7 +3029,18 @@ const itemDefinitions = {
     category: 'weapons',
     requirements: { magic: 15 },
     value: 1200,
-    buyable: true
+    buyable: true,
+    equipment: {
+      slot: 'weapon',
+      combatStats: {
+        magicAttack: 12,
+        magicDefence: 8,
+        attackSpeed: 4
+      },
+      requirements: {
+        magic: 15
+      }
+    }
   },
   'rune_fire': {
     id: 'rune_fire',
@@ -3212,6 +3471,128 @@ const itemDefinitions = {
     buyable: false
   },
 
+  // === Cape items ===
+  leather_cape: {
+    id: 'leather_cape',
+    name: 'Leather Cape',
+    icon: '🧥',
+    type: 'cape',
+    description: 'A basic leather cape that provides some protection.',
+    stackable: false,
+    value: 50,
+    buyable: true,
+    equipment: {
+      slot: 'cape',
+      combatStats: {
+        meleeDefence: 2,
+        rangedDefence: 3,
+        magicDefence: 1
+      },
+      requirements: {
+        defence: 1
+      }
+    }
+  },
+  red_cape: {
+    id: 'red_cape',
+    name: 'Red Cape',
+    icon: '🧥',
+    type: 'cape',
+    description: 'A vibrant red cape worn by adventurers.',
+    stackable: false,
+    value: 100,
+    buyable: true,
+    equipment: {
+      slot: 'cape',
+      combatStats: {
+        meleeDefence: 4,
+        rangedDefence: 4,
+        magicDefence: 2
+      },
+      requirements: {
+        defence: 10
+      }
+    }
+  },
+  blue_cape: {
+    id: 'blue_cape',
+    name: 'Blue Cape',
+    icon: '🧥',
+    type: 'cape',
+    description: 'A mystical blue cape that enhances magical defenses.',
+    stackable: false,
+    value: 150,
+    buyable: true,
+    equipment: {
+      slot: 'cape',
+      combatStats: {
+        meleeDefence: 3,
+        rangedDefence: 3,
+        magicDefence: 8
+      },
+      requirements: {
+        defence: 15,
+        magic: 10
+      }
+    }
+  },
+
+  // === Ring items ===
+  bronze_ring: {
+    id: 'bronze_ring',
+    name: 'Bronze Ring',
+    icon: '💍',
+    type: 'ring',
+    description: 'A simple bronze ring.',
+    stackable: false,
+    value: 25,
+    buyable: true,
+    equipment: {
+      slot: 'ring',
+      combatStats: {
+        meleeAttack: 1,
+        meleeDefence: 1
+      },
+      requirements: {}
+    }
+  },
+  iron_ring: {
+    id: 'iron_ring',
+    name: 'Iron Ring',
+    icon: '💍',
+    type: 'ring',
+    description: 'A sturdy iron ring.',
+    stackable: false,
+    value: 50,
+    buyable: true,
+    equipment: {
+      slot: 'ring',
+      combatStats: {
+        meleeAttack: 2,
+        meleeDefence: 2
+      },
+      requirements: {}
+    }
+  },
+  gold_ring: {
+    id: 'gold_ring',
+    name: 'Gold Ring',
+    icon: '💍',
+    type: 'ring',
+    description: 'A valuable gold ring that enhances magical power.',
+    stackable: false,
+    value: 200,
+    buyable: true,
+    equipment: {
+      slot: 'ring',
+      combatStats: {
+        magicAttack: 3,
+        magicDefence: 2
+      },
+      requirements: {}
+    }
+  },
+
   // === Bone items ===
   small_bones: {
     id: 'small_bones',
@@ -3282,6 +3663,120 @@ const itemDefinitions = {
     stackable: false,
     value: 25,
     buyable: false
+  },
+
+  // === Archaeology artifacts ===
+  ancient_pottery: {
+    id: 'ancient_pottery',
+    name: 'Ancient Pottery',
+    icon: '🏺',
+    type: 'artifact',
+    description: 'A piece of ancient pottery, carefully excavated from ruins.',
+    stackable: true,
+    value: 15,
+    buyable: false
+  },
+  bronze_coin: {
+    id: 'bronze_coin',
+    name: 'Bronze Coin',
+    icon: '🪙', 
+    type: 'artifact',
+    description: 'An old bronze coin from a bygone era.',
+    stackable: true,
+    value: 25,
+    buyable: false
+  },
+  stone_tablet: {
+    id: 'stone_tablet',
+    name: 'Stone Tablet',
+    icon: '📿',
+    type: 'artifact',
+    description: 'A stone tablet with ancient inscriptions.',
+    stackable: true,
+    value: 40,
+    buyable: false
+  },
+  ancient_scroll: {
+    id: 'ancient_scroll',
+    name: 'Ancient Scroll',
+    icon: '📜',
+    type: 'artifact',
+    description: 'A fragile scroll containing ancient knowledge.',
+    stackable: true,
+    value: 60,
+    buyable: false
+  },
+  golden_amulet: {
+    id: 'golden_amulet',
+    name: 'Golden Amulet',
+    icon: '🏅',
+    type: 'artifact',
+    description: 'A precious golden amulet of great archaeological value.',
+    stackable: true,
+    value: 100,
+    buyable: false
+  },
+  dragon_relic: {
+    id: 'dragon_relic',
+    name: 'Dragon Relic',
+    icon: '🔮',
+    type: 'artifact',
+    description: 'A legendary relic from an ancient dragon hoard.',
+    stackable: true,
+    value: 200,
+    buyable: false
+  },
+  
+  // === Archaeology tools ===
+  wooden_brush: {
+    id: 'wooden_brush',
+    name: 'Wooden Brush',
+    icon: '🖌️',
+    type: 'tool',
+    description: 'A simple wooden brush for gentle excavation work.',
+    stackable: false,
+    value: 10,
+    buyable: true
+  },
+  bronze_trowel: {
+    id: 'bronze_trowel',
+    name: 'Bronze Trowel',
+    icon: '🔧',
+    type: 'tool', 
+    description: 'A bronze trowel for more efficient archaeological excavation.',
+    stackable: false,
+    value: 50,
+    buyable: true
+  },
+  iron_pickaxe: {
+    id: 'iron_pickaxe',
+    name: 'Iron Pickaxe',
+    icon: '⛏️',
+    type: 'tool',
+    description: 'An iron pickaxe for heavy-duty archaeological digging.',
+    stackable: false,
+    value: 100,
+    buyable: true
+  },
+  steel_excavator: {
+    id: 'steel_excavator',
+    name: 'Steel Excavator',
+    icon: '🔨',
+    type: 'tool',
+    description: 'A specialized steel excavation tool for professional archaeologists.',
+    stackable: false,
+    value: 200,
+    buyable: true
+  },
+  enchanted_brush: {
+    id: 'enchanted_brush',
+    name: 'Enchanted Brush',
+    icon: '✨',
+    type: 'tool',
+    description: 'A magically enhanced brush that reveals hidden artifacts.',
+    stackable: false,
+    value: 500,
+    buyable: true
   }
 };
 

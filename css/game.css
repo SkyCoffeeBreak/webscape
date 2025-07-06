@@ -41,28 +41,32 @@
   margin: 20px auto;
   border: 3px solid #8b6f47;
   border-radius: 5px;
-  background-color: #5a8c3e; /* Default grass */
-  image-rendering: pixelated;
+  background-color: #5a8c3e;
   cursor: pointer;
+  
+  /* Enhanced pixel-perfect rendering */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  
   /* Ensure visibility */
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
-  min-width: 960px; /* 30 * 32 = new viewport width */
-  min-height: 672px; /* 21 * 32 = new viewport height */
+  min-width: 960px;
+  min-height: 672px;
   max-width: 960px;
   max-height: 672px;
+  
   /* Ensure it works within flexbox */
   flex-shrink: 0;
   align-self: center;
   
-  /* Firefox rendering optimizations */
+  /* Force GPU acceleration */
   transform: translateZ(0);
   backface-visibility: hidden;
   -moz-backface-visibility: hidden;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: pixelated;
-  -moz-transform: translateZ(0);
   will-change: transform;
 }
 
@@ -74,70 +78,41 @@
 }
 
 /* Player character */
-.player-character {
-  transition: left 0.2s linear, top 0.2s linear;
-  will-change: left, top, transform;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+#player-character {
   position: absolute;
-  /* Ensure visibility */
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  z-index: 10 !important;
+  z-index: 10;
+  cursor: pointer;
+  /* Remove any transitions that could cause sprite warping */
+  transition: none !important;
+  
+  /* Enhanced pixel-perfect rendering */
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: -moz-crisp-edges !important;
+  image-rendering: pixelated !important;
+  image-rendering: crisp-edges !important;
+  transform-origin: center center !important;
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  
+  /* Ensure clean sprite background */
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  
+  /* Force GPU acceleration for smooth movement without compromising sprite quality */
+  will-change: transform;
+  transform: translateZ(0);
+  
+  /* Prevent sub-pixel rendering issues */
+  contain: layout style paint;
+  
+  /* Ensure sprites are rendered at exact pixel boundaries */
+  top: 0;
+  left: 0;
+  transform: translate3d(0, 0, 0);
 }
 
-/* Player directional indicators */
-.player-character::after {
-  content: '';
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background-color: #ffffff;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0.8;
-}
-
-.player-character.facing-north::after {
-  top: 20%;
-  left: 50%;
-}
-
-.player-character.facing-northeast::after {
-  top: 20%;
-  left: 80%;
-}
-
-.player-character.facing-east::after {
-  top: 50%;
-  left: 80%;
-}
-
-.player-character.facing-southeast::after {
-  top: 80%;
-  left: 80%;
-}
-
-.player-character.facing-south::after {
-  top: 80%;
-  left: 50%;
-}
-
-.player-character.facing-southwest::after {
-  top: 80%;
-  left: 20%;
-}
-
-.player-character.facing-west::after {
-  top: 50%;
-  left: 20%;
-}
-
-.player-character.facing-northwest::after {
-  top: 20%;
-  left: 20%;
-}
+/* Removed player directional indicators - using sprite flipping instead */
 
 /* Obstacle - No Border (Terrain Element) */
 .obstacle {
@@ -649,7 +624,9 @@
 }
 
 .shop-grid {
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(7, 1fr);
+  max-height: 560px; /* accommodate 8 rows of 48px slots plus gaps */
+  overflow-y: hidden; /* prevent scroll bar */
 }
 
 .shop-inventory-grid {
@@ -1176,8 +1153,6 @@
 /* Standardized Skill Action Bubble System */
 .skill-bubble-container {
   position: absolute;
-  top: -60px;
-  left: 50%;
   pointer-events: none;
   z-index: 1000;
   animation: skill-bubble-float 2s infinite ease-in-out;
@@ -1185,6 +1160,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  /* No longer child of player - positioned relative to game world */
+  transform: translateX(-50%) !important;
 }
 
 /* Online player action bubbles - slightly different styling */
@@ -1303,6 +1280,8 @@
   z-index: 1000;
   animation: skill-bubble-float 2s infinite ease-in-out;
   width: max-content;
+  /* No longer needed since bubbles are positioned relative to game world */
+  transform: translateX(-50%) !important;
 }
 
 .mining-bubble,
@@ -1546,17 +1525,30 @@
 /* Online Player Indicators */
 .online-player {
   position: absolute;
-  border: 3px solid #e74c3c;
-  box-shadow: 0 0 12px rgba(231, 76, 60, 0.8);
-  border-radius: 6px;
+  border: none !important; /* Remove borders for sprites */
+  background-color: transparent !important; /* Transparent background for sprites */
+  border-radius: 0 !important; /* Remove circular border for sprites */
+  /* Use same text-shadow outline as main player */
+  text-shadow: 1px 1px 1px #000000, -1px -1px 1px #000000, 1px -1px 1px #000000, -1px 1px 1px #000000 !important;
   z-index: 12;
   transition: left 0.3s ease, top 0.3s ease, transform 0.2s ease;
+  /* Ensure pixel-perfect scaling just like the local player */
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: -moz-crisp-edges !important;
+  image-rendering: pixelated !important;
+  image-rendering: crisp-edges !important;
+  transform-origin: center center !important;
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  will-change: left, top, transform;
 }
 
 .online-player:hover {
-  border-color: #3498db;
-  box-shadow: 0 0 16px rgba(52, 152, 219, 1);
-  transform: scale(1.1);
+  /* Remove hover effects that could interfere with sprites */
+  border: none !important;
+  background-color: transparent !important;
+  transform: translateZ(0) !important; /* No scaling on hover */
+  box-shadow: none !important;
 }
 
 .online-player-username {
@@ -2253,4 +2245,230 @@
   font-weight: bold;
   min-width: 32px;
   text-align: center;
-} 
+}
+
+/* ===== GEAR INTERFACE STYLES ===== */
+
+.gear-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: linear-gradient(145deg, #2c2c2c, #1a1a1a);
+  border: 2px solid #444;
+  border-radius: 8px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.gear-section h3 {
+  margin: 0 0 15px 0;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  text-align: center;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Combat Options */
+.combat-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.option-row label {
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.option-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.option-row select {
+  flex: 1;
+  padding: 6px 10px;
+  background: #333;
+  color: #fff;
+  border: 2px solid #555;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.option-row select:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+/* Equipment Grid */
+.equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 240px;
+  margin: 0 auto;
+}
+
+.equipment-slot {
+  width: 70px;
+  height: 70px;
+  background: linear-gradient(145deg, #333, #222);
+  border: 2px solid #555;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.equipment-slot:hover {
+  border-color: #007bff;
+  background: linear-gradient(145deg, #444, #333);
+  transform: translateY(-1px);
+}
+
+.equipment-slot.equipped {
+  border-color: #28a745;
+  background: linear-gradient(145deg, #2d5a3d, #1e3a2a);
+}
+
+.equipment-slot.empty .slot-icon {
+  font-size: 24px;
+  opacity: 0.4;
+  margin-bottom: 2px;
+}
+
+.equipment-slot.empty .slot-name {
+  font-size: 10px;
+  color: #888;
+  text-align: center;
+  line-height: 1;
+}
+
+.equipment-slot.equipped .slot-icon {
+  font-size: 28px;
+  margin-bottom: 2px;
+}
+
+.equipment-slot.equipped .slot-name {
+  font-size: 9px;
+  color: #fff;
+  text-align: center;
+  line-height: 1;
+  font-weight: bold;
+}
+
+/* Equipment grid is now a standard 4x3 layout */
+
+/* Combat Stats */
+.combat-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-category {
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.stat-category h4 {
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  margin: 0 0 6px 0;
+  text-align: center;
+  border-bottom: 1px solid #555;
+  padding-bottom: 4px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: linear-gradient(145deg, #333, #222);
+  border: 1px solid #555;
+  border-radius: 4px;
+}
+
+.stat-label {
+  color: #ccc;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.stat-value {
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.stat-value.positive {
+  color: #28a745;
+}
+
+.stat-value.negative {
+  color: #dc3545;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .equipment-grid {
+    max-width: 210px;
+  }
+  
+  .equipment-slot {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .equipment-slot.empty .slot-icon {
+    font-size: 20px;
+  }
+  
+  .equipment-slot.equipped .slot-icon {
+    font-size: 24px;
+  }
+  
+  .gear-section {
+    padding: 10px;
+  }
+}
+
+/* Custom scrollbar for gear section */
+.gear-section::-webkit-scrollbar {
+  width: 8px;
+}
+
+.gear-section::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.gear-section::-webkit-scrollbar-thumb {
+  background: rgba(139, 105, 20, 0.8);
+  border-radius: 4px;
+}
+
+.gear-section::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 105, 20, 1);
+}

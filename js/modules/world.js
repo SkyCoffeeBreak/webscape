@@ -4,11 +4,29 @@
  */
 
 // Game world configuration
-const GRID_SIZE = 32; // Size of each grid cell in pixels
+// === Dynamic zoom configuration ===
+// This can be modified at runtime to zoom in/out. 1 = 100 %.
+let zoomLevel = 1.5;            // default 150 % (50 % zoom-in)
+const MIN_ZOOM = 1;           // 50 % (zoomed far out)
+const MAX_ZOOM = 3;             // 300 %
+
+// Base tile size before zoom is applied (do NOT change at runtime)
+const BASE_GRID_SIZE = 32;
+
+// Mutable, derived values – recomputed whenever zoomLevel changes
+let GRID_SIZE        = BASE_GRID_SIZE * zoomLevel; // pixel size of one tile
+
+// World dimensions (tile counts – unchanged by zoom)
 let WORLD_COLS = 100; // Default world size, will be updated from map data
 let WORLD_ROWS = 100; // Default world size, will be updated from map data
-const VIEWPORT_COLS = 30; // Visible area width in tiles (increased from 24, +25%)
-const VIEWPORT_ROWS = 21; // Visible area height in tiles (increased from 16, +30%)
+
+// Base viewport (tile counts at 100 %)
+const BASE_VIEWPORT_COLS = 30;
+const BASE_VIEWPORT_ROWS = 21;
+
+// Mutable viewport tile counts at current zoom
+let VIEWPORT_COLS = Math.round(BASE_VIEWPORT_COLS / zoomLevel);
+let VIEWPORT_ROWS = Math.round(BASE_VIEWPORT_ROWS / zoomLevel);
 
 // Layer system constants
 const LAYERS = {
@@ -53,10 +71,10 @@ let playerPosition = { x: 50, y: 50 }; // Start in the middle of the expanded wo
 let playerTarget = null; // Target position for movement
 let isMoving = false;
 let playerDirection = 'south'; // 'north', 'east', 'south', 'west', 'northeast', 'northwest', 'southeast', 'southwest'
-let movementSpeed = 4; // Grid cells per second
+let movementSpeed = 3; // Reduced by ~30 % for slower base walk
 let currentMapLevel = MAP_LEVELS.SURFACE; // Current map level player is on
 
-// Camera state
+// Camera state (initial position will be re-centred if zoom changes later)
 let cameraPosition = { x: 50 - VIEWPORT_COLS / 2, y: 50 - VIEWPORT_ROWS / 2 }; // Use floating point for smooth movement
 let lastCameraTilePosition = { x: -1, y: -1 }; // Track when camera moves to new tile for rendering optimization
 
@@ -107,6 +125,17 @@ let gameLoopId = null;
 let lastUpdateTime = 0;
 let periodicUpdateInterval = null;
 
+// === Running system ===
+let isRunning      = false;   // Whether local player has run toggled on
+let runEnergy      = 100;     // 0–100 %
+const RUN_MULT     = 2;       // Movement speed multiplier when running
+const RUN_DRAIN_PER_TILE = 0.5; // Further reduced drain (25% of previous)
+const RUN_REGEN_RATE      = 1; // % energy restored per second when NOT running
+
+// UI elements (created during world init)
+let runBtn   = null;
+let energyEl = null;
+
 // Initialize the world
 function initializeWorld() {
   console.log('Initializing world...');
@@ -122,6 +151,9 @@ function initializeWorld() {
   
   // Create the world container
   const worldElement = createWorldCanvas();
+  
+  // Create Run UI
+  createRunUI();
   
   // Render the initial world
   renderWorld(worldElement);
@@ -156,6 +188,9 @@ function initializeWorld() {
     window.worldModule.getCurrentMapLevel = getCurrentMapLevel;
     window.worldModule.setCurrentMapLevel = setCurrentMapLevel;
     window.worldModule.transitionToMapLevel = transitionToMapLevel;
+    // Zoom controls
+    window.worldModule.setZoomLevel = setZoomLevel;
+    window.worldModule.getZoomLevel = () => zoomLevel;
   }
   
   // Also expose globally for easy console access
@@ -572,6 +607,9 @@ function createWorldCanvas() {
   worldElement.tabIndex = 0; // Make it focusable
   worldElement.style.outline = 'none'; // Remove focus outline
   
+  // Attach zoom handler
+  worldElement.addEventListener('wheel', handleZoomWheel, { passive: false });
+  
   console.log(`World element styled: ${worldElement.style.width} x ${worldElement.style.height}`);
   
   // Clear any existing content
@@ -582,18 +620,38 @@ function createWorldCanvas() {
   player.id = 'player-character';
   player.className = 'player-character';
   player.style.position = 'absolute';
-  player.style.width = `${Math.round(GRID_SIZE * 0.67)}px`; // Reduced by 33%
-  player.style.height = `${Math.round(GRID_SIZE * 0.67)}px`; // Reduced by 33%
-  player.style.backgroundColor = '#3498db'; // Blue player
-  player.style.borderRadius = '50%';
-  player.style.transition = 'transform 0.2s ease';
+  player.style.width = `${Math.round(GRID_SIZE * 1.0)}px`; // Increased from 0.67 to 1.0
+  player.style.height = `${Math.round(GRID_SIZE * 1.0)}px`; // Increased from 0.67 to 1.0
+  player.style.borderRadius = '0'; // Remove circular border for sprites
+  // player.style.transition = 'transform 0.2s ease'; // Paper Mario-like flip effect commented out
   player.style.zIndex = '10';
-  // Center the smaller player within the grid cell
-  player.style.marginLeft = `${Math.round(GRID_SIZE * 0.165)}px`;
-  player.style.marginTop = `${Math.round(GRID_SIZE * 0.165)}px`;
+  // Center the player within the grid cell
+  player.style.marginLeft = '0px'; // Centered positioning
+  player.style.marginTop = '0px'; // Centered positioning
+  
+  // Initialize player sprite instead of background color
+  if (window.userModule && window.userModule.updatePlayerSprite) {
+    window.userModule.updatePlayerSprite();
+    console.log('🎭 Player sprite applied during world creation');
+  } else {
+    // Fallback to blue color if user module not loaded yet
+    player.style.backgroundColor = '#3498db';
+    console.log('🎭 Using fallback blue color - user module not ready');
+    
+    // Try to update sprite after a short delay
+    setTimeout(() => {
+      if (window.userModule && window.userModule.updatePlayerSprite) {
+        window.userModule.updatePlayerSprite();
+        console.log('🎭 Player sprite applied after delay');
+      }
+    }, 500);
+  }
+  
   worldElement.appendChild(player);
   
   console.log('Player character created and added to world');
+  // Attach mouse-wheel zoom handler (added once here)
+  worldElement.addEventListener('wheel', handleZoomWheel, { passive: false });
   
   // Add click handlers for movement and interaction
   addWorldEventListeners(worldElement);
@@ -1168,7 +1226,20 @@ function renderViewport(worldElement) {
                 console.log(`Restoring depleted ore state for ${tileValue} at (${worldX}, ${worldY}) from global state`);
                 
                 // Restore depleted appearance
-                element.textContent = '🪨';
+                if (tileValue.startsWith('ore_')) {
+                  // Use the proper depleted sprite instead of emoji
+                  const oreName = tileValue.replace('ore_', '');
+                  element.style.backgroundImage = `url('images/objects/ore/${oreName}_ore_depleted.png')`;
+                  element.style.backgroundSize = 'contain';
+                  element.style.backgroundRepeat = 'no-repeat';
+                  element.style.backgroundPosition = 'center';
+                  element.innerHTML = '';
+                  element.style.filter = 'none'; // keep crisp
+                  // Ensure crisp pixel-art scaling
+                  element.style.imageRendering = 'pixelated';
+                } else {
+                  element.textContent = '🪨';
+                }
                 element.title = 'Depleted ore (respawning...)';
                 element.dataset.depleted = 'true';
               }
@@ -1863,6 +1934,7 @@ function applyTerrainStyling(element, tileValue) {
 
 // Apply object styling to element
 function applyObjectStyling(element, layer, tileValue, worldX, worldY) {
+  console.log('Original applyObjectStyling called:', { tileValue, worldX, worldY });
   element.className += ' world-object';
   element.dataset.type = tileValue;
   element.dataset.x = worldX;
@@ -1889,11 +1961,11 @@ function applyObjectStyling(element, layer, tileValue, worldX, worldY) {
     'tree_bamboo': { name: 'Bamboo', icon: '🎋', interactive: true },
     'tree_magic': { name: 'Magic Tree', icon: '🎄', interactive: true },
     'scribing_table': { name: 'Scribing Table', icon: '📝', interactive: true },
-    'ore_copper': { name: 'Copper Ore', icon: '🟤', interactive: true },
-    'ore_tin': { name: 'Tin Ore', icon: '🔘', interactive: true },
-    'ore_iron': { name: 'Iron Ore', icon: '⚫', interactive: true },
+    'ore_copper': { name: 'Copper Ore', icon: '🟤', interactive: true, customImage: 'images/objects/ore/copper_ore.png' },
+    'ore_tin': { name: 'Tin Ore', icon: '🔘', interactive: true, customImage: 'images/objects/ore/tin_ore.png' },
+    'ore_iron': { name: 'Iron Ore', icon: '⚫', interactive: true, customImage: 'images/objects/ore/iron_ore.png' },
     'ore_silver': { name: 'Silver Ore', icon: '⚪', interactive: true },
-    'ore_gold': { name: 'Gold Ore', icon: '🟡', interactive: true },
+    'ore_gold': { name: 'Gold Ore', icon: '🟡', interactive: true, customImage: 'images/objects/ore/gold_ore.glb', depletedImage: 'images/objects/ore/gold_ore_depleted.glb' },
     'ore_mithril': { name: 'Mithril Ore', icon: '🔵', interactive: true },
     'ore_adamantite': { name: 'Adamantite Ore', icon: '🟢', interactive: true },
       'fishing_spot_shrimp': { name: 'Shrimp Fishing Spot', icon: '🌀', interactive: true },
@@ -1915,7 +1987,12 @@ function applyObjectStyling(element, layer, tileValue, worldX, worldY) {
     'ladder_up': { name: 'Ladder Up', icon: '🪜', interactive: true },
     'peach_tree': { name: 'Peach Tree', icon: '🌳🍑🍑🍑', interactive: true },
     'mushroom_patch': { name: 'Mushroom Patch', icon: '🍄', interactive: true },
-    'wheat_field': { name: 'Wheat Field', icon: '🌾', interactive: true }
+    'wheat_field': { name: 'Wheat Field', icon: '🌾', interactive: true },
+    'dig_site_ruins': { name: 'Ancient Ruins', icon: '🏛️', interactive: true },
+    'dig_site_burial': { name: 'Burial Mound', icon: '⛰️', interactive: true },
+    'dig_site_temple': { name: 'Lost Temple', icon: '🏯', interactive: true },
+    'dig_site_palace': { name: 'Royal Palace', icon: '🏰', interactive: true },
+    'dig_site_dragon': { name: 'Dragon Lair', icon: '🐉', interactive: true }
   };
   
   const objectDef = objectDefinitions[tileValue];
@@ -1948,14 +2025,28 @@ function applyObjectStyling(element, layer, tileValue, worldX, worldY) {
     }
     // Check if object has custom image
     else if (objectDef.customImage) {
+      // Apply sprite image
       element.style.backgroundImage = `url('${objectDef.customImage}')`;
       element.style.backgroundSize = 'contain';
       element.style.backgroundRepeat = 'no-repeat';
       element.style.backgroundPosition = 'center';
-      element.innerHTML = ''; // No text content for custom images
-      
-      // Add thin drop-shadow to match emoji objects' 1px outline
-      element.style.filter = 'drop-shadow(1px 1px 0px #000000) drop-shadow(-1px -1px 0px #000000) drop-shadow(1px -1px 0px #000000) drop-shadow(-1px 1px 0px #000000)';
+      element.innerHTML = '';
+
+      // If this is an ore, keep the pixel art crisp (no outline) and support depleted variant
+      if (tileValue.startsWith('ore_')) {
+        element.style.filter = 'none';
+
+        // Determine if depleted (either dataset flag or global state)
+        const oreKey = `${worldX},${worldY}`;
+        const isDepleted = element.dataset.depleted === 'true' || (window.depletedOreStates && window.depletedOreStates.has && window.depletedOreStates.has(oreKey));
+        if (isDepleted) {
+          const oreName = tileValue.replace('ore_', '');
+          element.style.backgroundImage = `url('images/objects/ore/${oreName}_ore_depleted.png')`;
+        }
+      } else {
+        // Non-ore custom images retain subtle outline for visibility
+        element.style.filter = 'drop-shadow(1px 1px 0px #000000) drop-shadow(-1px -1px 0px #000000) drop-shadow(1px -1px 0px #000000) drop-shadow(-1px 1px 0px #000000)';
+      }
       element.style.transition = 'transform 0.2s';
     } else {
       element.innerHTML = objectDef.icon;
@@ -1990,22 +2081,8 @@ function applyObjectStyling(element, layer, tileValue, worldX, worldY) {
         addOreEventHandlers(element, tileValue, worldX, worldY);
       } else if (tileValue.startsWith('tree_')) {
         addTreeEventHandlers(element, tileValue, worldX, worldY);
-      } else if (tileValue.startsWith('fishing_spot_')) {
-        addFishingSpotEventHandlers(element, tileValue, worldX, worldY);
-        // Ensure animation is always applied
-        element.classList.add('fishing-spot-swirl');
-      } else if (tileValue === 'pulp_basin') {
-        addPulpBasinEventHandlers(element, tileValue, worldX, worldY);
-      } else if (tileValue === 'scribing_table') {
-        addScribingTableEventHandlers(element, tileValue, worldX, worldY);
-      } else if (tileValue.startsWith('cooking_')) {
-        addCookingRangeEventHandlers(element, tileValue, worldX, worldY);
-      } else if (tileValue.endsWith('_tree') || tileValue === 'mushroom_patch' || tileValue === 'wheat_field') {
-        addHarvestingNodeEventHandlers(element, tileValue, worldX, worldY);
-      } else if (tileValue === 'ladder_down' || tileValue === 'ladder_up') {
-        addLadderEventHandlers(element, tileValue, worldX, worldY);
       }
-      // TODO: Add other object interaction handlers
+      return;
     }
     
     // Check for depleted tree state using global state map
@@ -2359,6 +2436,11 @@ function updatePlayerMovement(deltaTime) {
     if (movementQueue.length === 0) {
       isMoving = false;
       
+      // Set player to idle state for sprite animation
+      if (window.userModule && window.userModule.setPlayerMoving) {
+        window.userModule.setPlayerMoving(false); // Player is now idle
+      }
+      
       // Check if we have a pickup target at this location
       if (window.pickupTarget && 
           Math.abs(playerPosition.x - window.pickupTarget.x) < 1.5 && 
@@ -2474,16 +2556,28 @@ function updatePlayerMovement(deltaTime) {
   let dx = 0;
   let dy = 0;
   
+  const speed = movementSpeed * (isRunning ? RUN_MULT : 1);
+  
   if (playerPosition.x < nextTarget.x) {
-    dx = Math.min(movementSpeed * deltaTime, nextTarget.x - playerPosition.x);
+    dx = Math.min(speed * deltaTime, nextTarget.x - playerPosition.x);
   } else if (playerPosition.x > nextTarget.x) {
-    dx = Math.max(-movementSpeed * deltaTime, nextTarget.x - playerPosition.x);
+    dx = Math.max(-speed * deltaTime, nextTarget.x - playerPosition.x);
   }
   
   if (playerPosition.y < nextTarget.y) {
-    dy = Math.min(movementSpeed * deltaTime, nextTarget.y - playerPosition.y);
+    dy = Math.min(speed * deltaTime, nextTarget.y - playerPosition.y);
   } else if (playerPosition.y > nextTarget.y) {
-    dy = Math.max(-movementSpeed * deltaTime, nextTarget.y - playerPosition.y);
+    dy = Math.max(-speed * deltaTime, nextTarget.y - playerPosition.y);
+  }
+  
+  // Drain run energy proportional to distance moved when running
+  if (isRunning && (dx !== 0 || dy !== 0)) {
+    const dist = Math.hypot(dx, dy); // tiles moved this frame
+    runEnergy = Math.max(0, runEnergy - dist * RUN_DRAIN_PER_TILE);
+    if (runEnergy === 0) {
+      isRunning = false; // auto-toggle off
+    }
+    updateRunUIButton();
   }
   
   // Update player position
@@ -2508,6 +2602,11 @@ function updatePlayerMovement(deltaTime) {
   // Check if player is digging and has moved too far from the dig spot
   checkDiggingDistance();
   
+  // Check if player has moved too far from combat target and should disengage
+  if (window.checkCombatDisengagement) {
+    window.checkCombatDisengagement();
+  }
+  
   // Update player direction based on movement
   updatePlayerDirection(dx, dy);
   
@@ -2515,6 +2614,11 @@ function updatePlayerMovement(deltaTime) {
   const player = document.getElementById('player-character');
   if (player) {
     updatePlayerAppearance(player, playerDirection);
+    
+    // Update movement state for sprite animation
+    if (window.userModule && window.userModule.setPlayerMoving) {
+      window.userModule.setPlayerMoving(true); // Player is moving
+    }
   }
   
   // Check shop auto-close during movement
@@ -2535,11 +2639,8 @@ function updatePlayerDirection(dx, dy) {
     playerDirection = 'east';
   } else if (dx < 0) {
     playerDirection = 'west';
-  } else if (dy > 0) {
-    playerDirection = 'south';
-  } else if (dy < 0) {
-    playerDirection = 'north';
   }
+  // Removed dy > 0 and dy < 0 cases to keep current direction when moving purely up/down
 }
 
 // Update player appearance based on direction
@@ -2553,32 +2654,37 @@ function updatePlayerAppearance(playerElement, direction) {
   // Add appropriate direction class
   playerElement.classList.add(`facing-${direction}`);
   
-  // Visual indication of direction
-  switch (direction) {
-    case 'north':
-      playerElement.style.transform = 'translateY(-2px)';
-      break;
-    case 'northeast':
-      playerElement.style.transform = 'translate(2px, -2px)';
-      break;
-    case 'east':
-      playerElement.style.transform = 'translateX(2px)';
-      break;
-    case 'southeast':
-      playerElement.style.transform = 'translate(2px, 2px)';
-      break;
-    case 'south':
-      playerElement.style.transform = 'translateY(2px)';
-      break;
-    case 'southwest':
-      playerElement.style.transform = 'translate(-2px, 2px)';
-      break;
-    case 'west':
-      playerElement.style.transform = 'translateX(-2px)';
-      break;
-    case 'northwest':
-      playerElement.style.transform = 'translate(-2px, -2px)';
-      break;
+  // Use the new player form system if available
+  if (window.userModule && window.userModule.applyPlayerFacing) {
+    window.userModule.applyPlayerFacing(direction);
+  } else {
+    // Fallback to original transform system
+    switch (direction) {
+      case 'north':
+        playerElement.style.transform = 'translateY(-2px)';
+        break;
+      case 'northeast':
+        playerElement.style.transform = 'translate(2px, -2px)';
+        break;
+      case 'east':
+        playerElement.style.transform = 'translateX(2px)';
+        break;
+      case 'southeast':
+        playerElement.style.transform = 'translate(2px, 2px)';
+        break;
+      case 'south':
+        playerElement.style.transform = 'translateY(2px)';
+        break;
+      case 'southwest':
+        playerElement.style.transform = 'translate(-2px, 2px)';
+        break;
+      case 'west':
+        playerElement.style.transform = 'translateX(-2px)';
+        break;
+      case 'northwest':
+        playerElement.style.transform = 'translate(-2px, -2px)';
+        break;
+    }
   }
 }
 
@@ -4900,6 +5006,30 @@ function addLadderEventHandlers(element, ladderType, x, y) {
   });
 }
 
+// Add dig site event handlers
+function addDigSiteEventHandlers(element, siteType, x, y) {
+  element.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleDigSiteClick(siteType, x, y, element);
+  });
+}
+
+// Handle dig site clicks
+function handleDigSiteClick(siteType, x, y, element) {
+  console.log(`Clicked on ${siteType} at (${x}, ${y})`);
+  
+  // Check if archaeology module is available
+  if (window.archaeologyModule && window.archaeologyModule.handleDigSiteClick) {
+    window.archaeologyModule.handleDigSiteClick(siteType, x, y, element);
+  } else {
+    console.error('Archaeology module not available');
+    if (window.showNotification) {
+      window.showNotification('Archaeology system not loaded', 'error');
+    }
+  }
+}
+
 // Handle ladder interaction and map level transitions
 function handleLadderClick(ladderType, ladderX, ladderY, ladderElement) {
   console.log(`Ladder clicked: ${ladderType} at (${ladderX}, ${ladderY})`);
@@ -5122,3 +5252,418 @@ function updateDiggingHolePositions(cameraOffsetX, cameraOffsetY) {
 }
 // ... existing code ...
 // ... existing code ...
+
+/**
+ * ============================
+ *  Runtime Zoom helpers
+ * ============================
+ */
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+// Recalculate all derived sizing vars after zoom change
+function recalcGridAndViewport() {
+  GRID_SIZE = BASE_GRID_SIZE * zoomLevel;
+  VIEWPORT_COLS = Math.round(BASE_VIEWPORT_COLS / zoomLevel);
+  VIEWPORT_ROWS = Math.round(BASE_VIEWPORT_ROWS / zoomLevel);
+}
+
+// Calculate pixel-perfect scaling ratio for sprites
+function calculatePixelPerfectRatio(targetSize, spriteSize) {
+  // Calculate the closest integer ratio that doesn't exceed target size
+  const exactRatio = targetSize / spriteSize;
+  
+  // Use better thresholds for pixel-perfect scaling
+  // At zoom 1.0 (32px): 1x scaling (32px sprite)
+  // At zoom 1.5 (48px): 1x scaling (still crisp)
+  // At zoom 2.0 (64px): 2x scaling (64px sprite)
+  // At zoom 2.5 (80px): 2x scaling (still good)
+  // At zoom 3.0 (96px): 3x scaling (96px sprite)
+  
+  let pixelRatio;
+  if (exactRatio >= 3.0) {
+    pixelRatio = 3;
+  } else if (exactRatio >= 2.0) {
+    pixelRatio = 2;
+  } else {
+    pixelRatio = 1;
+  }
+  
+  console.log(`🎯 World module pixel ratio: target=${targetSize}px, sprite=${spriteSize}px, exact=${exactRatio.toFixed(2)}, pixel-perfect=${pixelRatio}x`);
+  
+  return pixelRatio;
+}
+
+// Resize DOM sprites (player + online players) to match current GRID_SIZE
+function resizePlayerSprites() {
+  const playerScale = 1.0; // Full grid size
+  const marginScale = 0.0; // Centered positioning
+  
+  const mainPlayer = document.getElementById('player-character');
+  if (mainPlayer) {
+    const pixelRatio = calculatePixelPerfectRatio(GRID_SIZE, 32);
+    const scaledSpriteSize = 32 * pixelRatio;
+    
+    // Size the player element to match grid size for proper tile alignment
+    mainPlayer.style.width = `${GRID_SIZE}px`;
+    mainPlayer.style.height = `${GRID_SIZE}px`;
+    
+    // Center the sprite within the grid cell
+    const centerOffset = (GRID_SIZE - scaledSpriteSize) / 2;
+    mainPlayer.style.backgroundSize = `${scaledSpriteSize}px ${scaledSpriteSize}px`;
+    mainPlayer.style.backgroundPosition = 'center';
+    
+    // Apply proper margins to center the sprite
+    mainPlayer.style.marginLeft = '0px';
+    mainPlayer.style.marginTop = '0px';
+    
+    console.log(`🎯 Main player resized: grid=${GRID_SIZE}px, sprite=${scaledSpriteSize}px (${pixelRatio}x), centered`);
+  }
+  
+  // Update online players with same system
+  const onlinePlayers = document.querySelectorAll('.online-player');
+  onlinePlayers.forEach(playerElement => {
+    const pixelRatio = calculatePixelPerfectRatio(GRID_SIZE, 32);
+    const scaledSpriteSize = 32 * pixelRatio;
+    
+    // Size the player element to match grid size for proper tile alignment
+    playerElement.style.width = `${GRID_SIZE}px`;
+    playerElement.style.height = `${GRID_SIZE}px`;
+    
+    // Center the sprite within the grid cell
+    playerElement.style.backgroundSize = `${scaledSpriteSize}px ${scaledSpriteSize}px`;
+    playerElement.style.backgroundPosition = 'center';
+    
+    // Apply proper margins to center the sprite
+    playerElement.style.marginLeft = '0px';
+    playerElement.style.marginTop = '0px';
+    
+    console.log(`🎯 Online player resized: grid=${GRID_SIZE}px, sprite=${scaledSpriteSize}px (${pixelRatio}x), centered`);
+  });
+}
+
+function setZoomLevel(newZoom) {
+  // Snap to nearest 0.25 increment to guarantee integer GRID_SIZE (32 * 0.25 = 8)
+  const increment = 0.25;
+  const snapped   = Math.round(newZoom / increment) * increment;
+  const clamped = clamp(snapped, MIN_ZOOM, MAX_ZOOM);
+  if (Math.abs(clamped - zoomLevel) < 0.001) return; // no-op
+  zoomLevel = clamped;
+  recalcGridAndViewport();
+
+  // Update viewport dimensions & world container size
+  const worldElement = document.getElementById('game-world');
+  if (worldElement) {
+    worldElement.style.width  = `${GRID_SIZE * VIEWPORT_COLS}px`;
+    worldElement.style.height = `${GRID_SIZE * VIEWPORT_ROWS}px`;
+  }
+
+  // Re-centre camera on player to avoid drift
+  cameraPosition.x = playerPosition.x - VIEWPORT_COLS / 2;
+  cameraPosition.y = playerPosition.y - VIEWPORT_ROWS / 2;
+
+  // Resize sprites & re-render all world tiles
+  resizePlayerSprites();
+  updateCamera(); // ensure camera offsets recalc before rerendering
+  forceWorldRerender();
+
+  // Notify other modules
+  if (window.worldModule) {
+    window.worldModule.getZoomLevel = () => zoomLevel;
+  }
+}
+
+function handleZoomWheel(e) {
+  e.preventDefault();
+  const delta = e.deltaY;
+  const step = 0.25; // matches snapping increment
+  const direction = delta > 0 ? -1 : 1; // scrolling up -> delta negative -> zoom in (+1)
+  const newZoom = zoomLevel + direction * step;
+  setZoomLevel(newZoom);
+}
+
+// === Run UI ===
+function createRunUI() {
+  const gameWorld = document.querySelector('.game-world');
+  if (!gameWorld) return;
+
+  // Container overlay inside the game view (camera-synced)
+  const container = document.createElement('div');
+  container.style.position = 'absolute';
+  container.style.right = '8px';
+  container.style.bottom = '8px';
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.alignItems = 'center';
+  container.style.zIndex = '999';
+
+  runBtn = document.createElement('button');
+  runBtn.innerHTML = 'Run:<br>OFF'; // newline via <br> for consistent size
+  runBtn.className = 'game-btn';
+  runBtn.style.width = '80px';
+  runBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // Prevent world click
+    e.preventDefault();
+    if (runEnergy <= 0) return;
+    isRunning = !isRunning;
+    updateRunUIButton();
+  });
+
+  energyEl = document.createElement('div');
+  energyEl.textContent = 'Energy: 100%';
+  energyEl.style.fontSize = '12px';
+  energyEl.style.color = '#fff';
+
+  container.appendChild(runBtn);
+  container.appendChild(energyEl);
+  gameWorld.appendChild(container);
+
+  // Keyboard toggle (Left Control) to run ON/OFF
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'ControlLeft' && !e.repeat) {
+      if (runEnergy > 0 || isRunning) {
+        isRunning = !isRunning;
+        updateRunUIButton();
+      }
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'ControlLeft') {
+      // Only disable run if it wasn't toggled on via the button
+      if (!runBtn || runBtn.textContent.includes('OFF')) {
+        isRunning = false;
+        updateRunUIButton();
+      }
+    }
+  });
+
+  // Load persisted energy
+  const stored = Number(localStorage.getItem('run_energy'));
+  if (!isNaN(stored)) runEnergy = Math.max(0, Math.min(100, stored));
+  updateRunUIButton();
+
+  // Regen loop – restores energy even while running (OSRS style)
+  setInterval(() => {
+    if (runEnergy < 100) {
+      runEnergy = Math.min(100, runEnergy + RUN_REGEN_RATE);
+      updateRunUIButton();
+    }
+  }, 1000);
+}
+
+function updateRunUIButton() {
+  if (!runBtn || !energyEl) return;
+  runBtn.innerHTML = `Run:<br>${isRunning ? 'ON' : 'OFF'}`;
+  energyEl.textContent = `Energy: ${Math.round(runEnergy)}%`;
+  runBtn.disabled = runEnergy <= 0;
+
+  // Persist
+  localStorage.setItem('run_energy', runEnergy.toFixed(2));
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+//  THREE-JS  GOLD  ORE  RENDERER
+// ──────────────────────────────────────────────────────────────────────────
+
+async function loadThreeCore() {
+  console.log('loadThreeCore called');
+  if (window.__threePromise) {
+    console.log('Using cached Three.js promise');
+    return window.__threePromise;
+  }
+  
+  console.log('Starting Three.js import');
+  window.__threePromise = Promise.all([
+    import('three').catch(e => {
+      console.error('Failed to import three:', e);
+      throw e;
+    }),
+    import('three/addons/loaders/GLTFLoader.js').catch(e => {
+      console.error('Failed to import GLTFLoader:', e);
+      throw e;
+    })
+  ]).then(([THREE, { GLTFLoader }]) => {
+    console.log('Three.js and GLTFLoader imported successfully');
+    return { THREE: THREE, GLTFLoader: GLTFLoader };
+  }).catch(error => {
+    console.error('Failed to load Three.js dependencies:', error);
+    throw error;
+  });
+  
+  return window.__threePromise;
+}
+
+// Cache for rendered ore images at different sizes
+const oreImageCache = {
+  normal: {},
+  depleted: {}
+};
+
+function renderGoldOreModel(element, worldX, worldY) {
+  console.log('Starting gold ore model render for position:', worldX, worldY);
+  
+  // Clean placeholder styling
+  element.innerHTML = '';
+  element.style.background = 'transparent';
+  element.style.filter = 'none';
+  element.style.imageRendering = 'pixelated';
+
+  const size = (typeof getGridSize === 'function') ? getGridSize() : 32;
+  const oreKey = `${worldX},${worldY}`;
+  const isDepleted = element.dataset.depleted === 'true' ||
+    (window.depletedOreStates && window.depletedOreStates.has && window.depletedOreStates.has(oreKey));
+  
+  // Check cache first
+  const cache = isDepleted ? oreImageCache.depleted : oreImageCache.normal;
+  if (cache[size]) {
+    console.log('Using cached ore image for size:', size);
+    element.style.backgroundImage = `url(${cache[size]})`;
+    element.style.backgroundSize = 'contain';
+    return;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  canvas.style.width = `${size}px`;
+  canvas.style.height = `${size}px`;
+  element.appendChild(canvas);
+  console.log('Canvas created with size:', size);
+
+  loadThreeCore().then(({ THREE, GLTFLoader }) => {
+    console.log('Three.js and GLTFLoader loaded successfully');
+    const loader = new GLTFLoader();
+    const oreKey = `${worldX},${worldY}`;
+    const isDepleted = element.dataset.depleted === 'true' ||
+      (window.depletedOreStates && window.depletedOreStates.has && window.depletedOreStates.has(oreKey));
+
+    const modelPath = isDepleted ? 'images/objects/ore/gold_ore_depleted.glb'
+                                 : 'images/objects/ore/gold_ore.glb';
+    console.log('Loading model from path:', modelPath);
+
+    // Create a fetch request to check if the model file exists
+    fetch(modelPath)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Model file not found: ${modelPath} (${response.status})`);
+        }
+        console.log('Model file exists and is accessible');
+        
+        // Now load the model with GLTFLoader
+        loader.load(modelPath, (gltf) => {
+          console.log('Model loaded successfully:', gltf);
+          const scene = new THREE.Scene();
+          const model = gltf.scene;
+          const scale = size / 2; // Keep 1 ThreeJS unit ≈ 2px so 32px tile => 16 scale
+          model.scale.set(scale, scale, scale);
+          
+          // Rotate 45 degrees around Y axis and tilt down
+          model.rotation.y = Math.PI / 4;
+          model.rotation.x = Math.PI / 3; // Tilt down by 60 degrees
+          scene.add(model);
+
+          // Adjust camera to better frame the tilted model
+          const camera = new THREE.OrthographicCamera(-scale, scale, scale, -scale, 0.1, 1000);
+          camera.position.z = 50;
+          camera.position.y = 20; // Move camera up slightly to look down
+          camera.lookAt(0, 0, 0); // Point camera at center
+          console.log('Camera set up at position:', camera.position);
+
+          const light = new THREE.DirectionalLight(0xffffff, 1);
+          light.position.set(5, 10, 10);
+          scene.add(light);
+          console.log('Lighting added to scene');
+
+          const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
+          renderer.setSize(size, size, false);
+          console.log('Renderer created and sized');
+          
+          try {
+            renderer.render(scene, camera);
+            console.log('Scene rendered successfully');
+            
+            // Convert the rendered canvas to an image and cache it
+            const dataUrl = canvas.toDataURL('image/png');
+            const cache = isDepleted ? oreImageCache.depleted : oreImageCache.normal;
+            cache[size] = dataUrl;
+            
+            element.removeChild(canvas); // Remove the WebGL canvas
+            element.style.backgroundImage = `url(${dataUrl})`;
+            element.style.backgroundSize = 'contain';
+            
+            // Clean up Three.js resources
+            renderer.dispose();
+            scene.dispose();
+            
+          } catch (renderError) {
+            console.error('Error during scene render:', renderError);
+            element.innerHTML = '🟡';
+          }
+        }, 
+        // Progress callback
+        (progress) => {
+          const percent = (progress.loaded / progress.total * 100).toFixed(2);
+          console.log(`Loading progress for ${modelPath}: ${percent}%`);
+        },
+        // Error callback
+        (error) => {
+          console.error('Error loading gold ore model:', error);
+          element.innerHTML = '🟡';
+        });
+      })
+      .catch(error => {
+        console.error('Error checking model file:', error);
+        element.innerHTML = '🟡';
+      });
+  }).catch(err => {
+    console.error('Failed to load three.js / GLTF:', err);
+    element.innerHTML = '🟡';
+  });
+}
+
+// Original function reference for gold ore override
+let originalApplyObjectStyling = null;
+
+// Function to set up gold ore rendering override
+function setupGoldOreOverride() {
+  console.log('Setting up gold ore renderer override...');
+  if (typeof window === 'undefined') {
+    console.log('Not in browser environment, skipping');
+    return;
+  }
+  
+  // Store original function if not already stored
+  if (!originalApplyObjectStyling) {
+    originalApplyObjectStyling = applyObjectStyling;
+    console.log('Stored original applyObjectStyling');
+  }
+  
+  // Create the override function
+  const overrideFunction = function(element, layer, tileValue, worldX, worldY) {
+    console.log('applyObjectStyling called with:', { tileValue, worldX, worldY });
+    if (tileValue === 'ore_gold') {
+      console.log('Applying gold ore styling for:', worldX, worldY);
+      // Draw GLB once per element
+      renderGoldOreModel(element, worldX, worldY);
+      if (typeof addOreEventHandlers === 'function') {
+        addOreEventHandlers(element, tileValue, worldX, worldY);
+      }
+      element.title = 'Gold Ore';
+      return; // Skip original styling to avoid emoji fallback
+    }
+    // Fallback to default behaviour for all other objects
+    return originalApplyObjectStyling.call(this, element, layer, tileValue, worldX, worldY);
+  };
+  
+  // Apply the override
+  applyObjectStyling = overrideFunction;
+  window.applyObjectStyling = overrideFunction;
+  console.log('Gold ore override installed');
+}
+
+// Call setup during world initialization
+document.addEventListener('DOMContentLoaded', setupGoldOreOverride);
+window.addEventListener('load', setupGoldOreOverride);

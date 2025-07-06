@@ -123,36 +123,72 @@ app.use((req, res, next) => {
 
 const PORT = process.env.PORT || 8081;
 
-// Persistent storage files
-const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+// Persistent storage paths
+const USERS_DIR = path.join(__dirname, 'data', 'users'); // one file per player
 const SESSIONS_FILE = path.join(__dirname, 'data', 'sessions.json');
 
-// Ensure data directory exists
+// Ensure data directories exist
+if (!fs.existsSync(USERS_DIR)) {
+  fs.mkdirSync(USERS_DIR, { recursive: true });
+}
+
+// (sessions.json still lives in /data; make sure that folder exists too)
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-// Load users from file
+// ----------  Per-player file persistence ----------
+
+/**
+ * Load all users from the users directory at startup.
+ * Scans data/users/*.json and builds the in-memory Map.
+ */
 function loadUsers() {
+  const map = new Map();
   try {
-    if (fs.existsSync(USERS_FILE)) {
-      const data = fs.readFileSync(USERS_FILE, 'utf8');
-      return new Map(Object.entries(JSON.parse(data)));
+    const files = fs.readdirSync(USERS_DIR).filter(f => f.endsWith('.json'));
+    for (const file of files) {
+      try {
+        const raw = fs.readFileSync(path.join(USERS_DIR, file), 'utf8');
+        const data = JSON.parse(raw);
+        const username = path.basename(file, '.json');
+        // Ensure role exists
+        if (!data.profile) data.profile = { username };
+        if (!data.profile.role) {
+          data.profile.role = username.toLowerCase() === 'sky' ? 'mod' : 'player';
+        }
+        map.set(username, data);
+      } catch (innerErr) {
+        console.error(`⚠️  Failed to load user file ${file}:`, innerErr);
+      }
     }
+    console.log(`📂 Loaded ${map.size} player profiles from disk`);
   } catch (error) {
-    console.error('Error loading users:', error);
+    console.error('Error scanning user directory:', error);
   }
-  return new Map();
+  return map;
 }
 
-// Save users to file
-function saveUsers() {
+/**
+ * Persist a single user to its individual JSON file.
+ */
+function saveUser(username, userData) {
   try {
-    const usersObj = Object.fromEntries(users);
-    fs.writeFileSync(USERS_FILE, JSON.stringify(usersObj, null, 2));
+    const filePath = path.join(USERS_DIR, `${username}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(userData, null, 2));
   } catch (error) {
-    console.error('Error saving users:', error);
+    console.error(`Error saving user ${username}:`, error);
+  }
+}
+
+/**
+ * Persist **all** users. Existing calls to saveUsers() now delegate here so
+ * we keep compatibility while switching storage model.
+ */
+function saveUsers() {
+  for (const [username, data] of users.entries()) {
+    saveUser(username, data);
   }
 }
 
@@ -435,15 +471,50 @@ function moveNPCRandomly(npcId) {
   if (!npc) return;
   if (npc.isAggressive) return; // Skip random movement for combat NPCs
 
-  // Get possible movement directions
-  const possibleMoves = getPossibleNPCMoves(npc);
-  
-  if (possibleMoves.length === 0) {
-    // No valid moves, try again later
+  // First – if the NPC has wandered outside its radius, always step back toward spawn.
+  const distFromSpawn = Math.abs(npc.x - npc.spawnX) + Math.abs(npc.y - npc.spawnY);
+  if (distFromSpawn > npc.wanderRadius) {
+    const stepX = npc.spawnX > npc.x ? 1 : (npc.spawnX < npc.x ? -1 : 0);
+    const stepY = npc.spawnY > npc.y ? 1 : (npc.spawnY < npc.y ? -1 : 0);
+
+    const targetX = npc.x + stepX;
+    const targetY = npc.y + stepY;
+
+    // Prevent diagonal wall clipping just like OSRS
+    let pathClear = true;
+    if (stepX !== 0 && stepY !== 0) {
+      const horizontalClear = isPositionWalkableForNPC(npc.x + stepX, npc.y);
+      const verticalClear   = isPositionWalkableForNPC(npc.x, npc.y + stepY);
+      if (!horizontalClear || !verticalClear) pathClear = false;
+    }
+
+    if (pathClear && isPositionWalkableForNPC(targetX, targetY)) {
+      npc.x = targetX;
+      npc.y = targetY;
+      npc.movementDirection = stepX === 0 ? (stepY > 0 ? 'down' : 'up') : (stepX > 0 ? (stepY > 0 ? 'down-right' : (stepY < 0 ? 'up-right' : 'right')) : (stepY > 0 ? 'down-left' : (stepY < 0 ? 'up-left' : 'left')));
+
+      broadcastToAll({
+        type: 'npc-move',
+        npcId,
+        position: { x: npc.x, y: npc.y },
+        direction: npc.movementDirection,
+        timestamp: Date.now()
+      });
+    }
+
+    // While returning to spawn, do NOT stop randomly – we want continuous movement.
     return;
   }
 
-  // Choose random direction
+  // Normal wandering behaviour inside radius
+  const possibleMoves = getPossibleNPCMoves(npc);
+
+  if (possibleMoves.length === 0) {
+    // No valid moves, will retry later
+    return;
+  }
+
+  // Choose random direction among valid moves
   const move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
   const newX = npc.x + move.dx;
   const newY = npc.y + move.dy;
@@ -454,7 +525,7 @@ function moveNPCRandomly(npcId) {
   npc.lastMoveTime = Date.now();
   npc.movementDirection = move.direction;
 
-  console.log(`🎭 NPC ${npc.name} moved to (${newX}, ${newY})`);
+  //console.log(`🎭 NPC ${npc.name} moved to (${newX}, ${newY})`);
 
   // Broadcast NPC movement to all players
   broadcastToAll({
@@ -473,27 +544,38 @@ function moveNPCRandomly(npcId) {
 
 function getPossibleNPCMoves(npc) {
   const moves = [];
+
+  // Directions an NPC can attempt to walk (8-way)
   const directions = [
-    // Cardinal directions
+    // Cardinal
     { dx: 0, dy: -1, direction: 'up' },
     { dx: 0, dy: 1, direction: 'down' },
     { dx: -1, dy: 0, direction: 'left' },
     { dx: 1, dy: 0, direction: 'right' },
-    // Diagonal directions
+    // Diagonals
     { dx: -1, dy: -1, direction: 'up-left' },
     { dx: 1, dy: -1, direction: 'up-right' },
     { dx: -1, dy: 1, direction: 'down-left' },
     { dx: 1, dy: 1, direction: 'down-right' }
   ];
 
+  // Current distance from spawn – Manhattan metric (same as OSRS pathing radius checks)
+  const currentDistance = Math.abs(npc.x - npc.spawnX) + Math.abs(npc.y - npc.spawnY);
+  const outsideWanderRadius = currentDistance > npc.wanderRadius;
+
   for (const dir of directions) {
     const newX = npc.x + dir.dx;
     const newY = npc.y + dir.dy;
 
-    // Check if within wander radius from spawn
-    const distanceFromSpawn = Math.abs(newX - npc.spawnX) + Math.abs(newY - npc.spawnY);
-    if (distanceFromSpawn > npc.wanderRadius) {
-      continue;
+    const newDistance = Math.abs(newX - npc.spawnX) + Math.abs(newY - npc.spawnY);
+
+    // Enforce wander radius differently depending on whether NPC is already outside it.
+    if (!outsideWanderRadius) {
+      // Normal case: stay within radius
+      if (newDistance > npc.wanderRadius) continue;
+    } else {
+      // NPC is lured outside – only allow moves that move it CLOSER to spawn
+      if (newDistance >= currentDistance) continue;
     }
 
     // Check if position is walkable using collision detection
@@ -511,7 +593,7 @@ function getPossibleNPCMoves(npc) {
           pathClear = false;
           // Debug: Log blocked diagonal movements occasionally
           if (Math.random() < 0.01) { // 1% chance to log
-            console.log(`🚫 NPC ${npc.name} blocked diagonal movement to (${newX}, ${newY}) - wall clipping prevented`);
+            //console.log(`🚫 NPC ${npc.name} blocked diagonal movement to (${newX}, ${newY}) - wall clipping prevented`);
           }
         }
       }
@@ -533,7 +615,7 @@ function getPossibleNPCMoves(npc) {
     } else {
       // Debug: Log blocked positions occasionally
       if (Math.random() < 0.01) { // 1% chance to log
-        console.log(`🚫 NPC ${npc.name} blocked from moving to (${newX}, ${newY}) - collision detected`);
+        //console.log(`🚫 NPC ${npc.name} blocked from moving to (${newX}, ${newY}) - collision detected`);
       }
     }
   }
@@ -2123,12 +2205,28 @@ app.get('/api/highscores', (req, res) => {
     const highscores = {};
     
     // All skills from the game (complete list)
-    const allSkills = ['attack', 'defence', 'hitpoints', 'magic', 'ranged', 'blasting', 'prayer', 'slayer',
-                      'mining', 'smithing', 'fishing', 'cooking', 'woodcutting', 'fletching', 'crafting',
-                      'harvesting', 'digging', 'apothecary', 'scribing', 'masonry', 'candlemaking',
-                      'painting', 'brewing', 'confectionery', 'tailoring', 'bonecarving', 'pottery',
-                      'thieving', 'alchemy', 'creation', 'delivery', 'ranching', 'knowledge',
-                      'diplomacy', 'engineering', 'taming'];
+    const allSkills = [
+      // Combat Skills
+      'attack', 'strength', 'stamina', 'magic', 'darkmagic', 'lightmagic', 'ranged', 'gunner', 'blasting', 
+      'cardmaster', 'poisoning', 'rogue', 'defence', 'hitpoints', 'prayer', 'sealing', 'slayer', 'dungeoneering',
+      // Creature/Spirit Skills
+      'taming', 'summoning', 'tidecalling', 'necromancy', 'falconry', 'pacting', 'dracology', 'golemancy', 'puppeteering',
+      // Gathering Skills
+      'mining', 'fishing', 'harvesting', 'woodcutting', 'hunting', 'mycology', 'diving', 'digging', 'archaeology', 'bugCatching', 'ghostHunting',
+      // Artisan Skills
+      'smithing', 'crafting', 'engineering', 'cooking', 'confectionery', 'fletching', 'scribing',
+      'apothecary', 'brewing', 'painting', 'pottery', 'masonry', 'bonecarving', 'tailoring',
+      'candlemaking', 'glassworking', 'toymaking', 'carpentry', 'butchery', 'leatherworking', 'maskMaking', 'shellcraft', 'invention',
+      // Magic/Mystical Skills
+      'creation', 'enchanting', 'runecrafting', 'alchemy', 'warding', 'astrology', 'dreaming',
+      'geomancy', 'windweaving', 'spiritbinding', 'shifting', 'druidism',
+      // Support Skills
+      'thieving', 'delivery', 'knowledge', 'diplomacy', 'sailing', 'ruling', 'ranching', 'beekeeping', 'aquaculture', 'gardening', 'merchanting', 'barista', 'firemaking', 'bestiary', 'prospecting', 'crystallization', 'agility',
+      // Entertainment/Art Skills
+      'entertainment', 'barding', 'gravekeeping',
+      // Specialized Skills
+      'gambling', 'occultism', 'riding', 'exploration', 'mythology', 'artisan', 'snowcraft', 'scrapping'
+    ];
     
     // Calculate highscores for each skill (top 25 players)
     allSkills.forEach(skill => {
@@ -2265,8 +2363,18 @@ wss.on('connection', (ws) => {
       const data = JSON.parse(message);
       handleWebSocketMessage(ws, data);
     } catch (error) {
-      console.error('Invalid WebSocket message:', error);
+      const raw = message.toString();
+      if (raw && raw.startsWith('/')) {
+        // Treat raw slash-prefixed text as a chat-message command for backward compatibility
+        console.warn('⚠️ Received raw command string over WS, coercing to chat-message:', raw);
+        handleWebSocketMessage(ws, { type: 'chat-message', message: raw });
+      } else if (raw && raw.trim().length > 0) {
+        // Treat any other raw text as a regular chat-message
+        handleWebSocketMessage(ws, { type: 'chat-message', message: raw });
+      } else {
+        console.error('Invalid WebSocket message:', error, '\nRaw data:', raw);
       ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
+      }
     }
   });
   
@@ -2371,7 +2479,7 @@ function handleWebSocketMessage(ws, data) {
       break;
     case 'player-attack-npc':
       if (ws.username) {
-        startCombat(ws.username, data.npcId);
+        startCombat(ws.username, data.npcId, data.combatStyle);
       }
       break;
     case 'item-consumed':
@@ -2385,6 +2493,19 @@ function handleWebSocketMessage(ws, data) {
       break;
     case 'digging-hole-removed':
       handleDiggingHoleRemoved(ws, data);
+      break;
+    case 'sync-hitpoints':
+      handleHitpointsSync(ws, data);
+      break;
+    case 'activity-ping':
+      // Lightweight keep-alive / inactivity reset sent by the client every user interaction
+      if (ws.username) {
+        const playerData = connectedPlayers.get(ws.username);
+        if (playerData) {
+          playerData.lastActivity = Date.now();
+        }
+      }
+      // No further action required; do not echo anything back to avoid console noise
       break;
     default:
       ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
@@ -2443,8 +2564,8 @@ function handleWebSocketAuth(ws, data) {
     ws,
     position: playerPosition,
     profile: user.profile,
-    maxHP: user.profile?.skills?.hitpoints || 10,
-    currentHP: user.profile?.skills?.hitpoints || 10
+    maxHP: (user.profile.maxHP ?? user.profile?.skills?.hitpoints ?? 10),
+    currentHP: (user.profile.currentHP ?? user.profile?.skills?.hitpoints ?? 10)
   });
   
   // Send successful authentication with complete player data
@@ -2457,7 +2578,9 @@ function handleWebSocketAuth(ws, data) {
     savedSkills: user.savedSkills || user.profile.skills,
     savedSkillsExp: user.savedSkillsExp || user.profile.skillsExp,
     savedInventory: user.savedInventory || [],
-    savedCompletedBooks: user.savedCompletedBooks || []
+    savedCompletedBooks: user.savedCompletedBooks || [],
+    currentHP: (user.profile.currentHP ?? user.profile?.skills?.hitpoints ?? 10),
+    maxHP: (user.profile.maxHP ?? user.profile?.skills?.hitpoints ?? 10)
   }));
   
   console.log(`📚 Sent completed books to ${session.username} (${(user.savedCompletedBooks || []).length} books)`);
@@ -2512,6 +2635,14 @@ function handleWebSocketAuth(ws, data) {
     maxHP: currentPlayerData.maxHP,
     timestamp: Date.now()
   });
+  // Also send directly to the newly connected player so their UI shows correct HP immediately
+  ws.send(JSON.stringify({
+    type: 'player-health-update',
+    username: session.username,
+    currentHP: currentPlayerData.currentHP,
+    maxHP: currentPlayerData.maxHP,
+    timestamp: Date.now()
+  }));
 }
 
 function handlePlayerMove(ws, data) {
@@ -2640,6 +2771,14 @@ function handlePlayerColorUpdate(ws, data) {
       playerData.profile.settings = {};
     }
     playerData.profile.settings.playerColor = data.color;
+
+    // Persist to disk so color survives reconnects
+    const user = users.get(ws.username);
+    if (user) {
+      if (!user.profile.settings) user.profile.settings = {};
+      user.profile.settings.playerColor = data.color;
+      saveUser(ws.username, user);
+    }
     
     // Broadcast color update to other players
     broadcastToAll({
@@ -2656,11 +2795,211 @@ function handlePlayerColorUpdate(ws, data) {
 function handleChatMessage(ws, data) {
   if (!ws.username) return;
   
-  // Broadcast chat message to all players INCLUDING the sender
+  const user = users.get(ws.username);
+  if (!user) return;
+
+  const text = data.message.trim();
+
+  // Commands start with '/'
+  if (text.startsWith('/')) {
+    const parts = text.slice(1).split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+
+    const isMod = user.profile?.role === 'mod';
+
+    const sendSystem = (msg) => {
+      ws.send(JSON.stringify({
+        type: 'chat-message',
+        username: 'SYSTEM',
+        message: msg,
+        timestamp: new Date().toISOString()
+      }));
+    };
+
+    if (cmd === 'mod') {
+      if (!isMod) return sendSystem('❌ You are not a moderator.');
+      const target = parts[1];
+      if (!target || !users.has(target)) return sendSystem('Usage: /mod <username>');
+      const targetUser = users.get(target);
+      if (targetUser.profile.role !== 'mod') {
+        targetUser.profile.role = 'mod';
+        saveUser(target, targetUser);
+        sendSystem(`✅ ${target} is now a moderator.`);
+      } else {
+        sendSystem(`${target} is already a moderator.`);
+      }
+      return;
+    }
+
+    if (cmd === 'ban') {
+      if (!isMod) return sendSystem('❌ You are not a moderator.');
+      const [_, rawTarget, amountStr, unit] = parts;
+      const targetKey = findUserKey(rawTarget);
+      if (!targetKey || !amountStr || !unit) return sendSystem('Usage: /ban <username> <amount> <minutes|hours|days>');
+      const amt = parseInt(amountStr);
+      if (isNaN(amt) || amt <= 0) return sendSystem('Invalid duration.');
+      const mult = unit.startsWith('minute') ? 60000 : unit.startsWith('hour') ? 3600000 : 86400000; // days
+      const until = Date.now() + amt * mult;
+      const tUser = users.get(targetKey);
+      tUser.bannedUntil = until;
+      saveUser(targetKey, tUser);
+      // Invalidate all sessions for that user
+      for (const [sid, sess] of sessions.entries()) {
+        if (sess.username === targetKey) sessions.delete(sid);
+      }
+      saveSessions();
+      // Kick if online
+      if (connectedPlayers.has(targetKey)) {
+        const tWs = connectedPlayers.get(targetKey).ws;
+        tWs.send(JSON.stringify({ type: 'logout', message: 'You have been banned.' }));
+        tWs.close();
+        connectedPlayers.delete(targetKey);
+      }
+      broadcastToAll({ type:'chat-message', username:'SYSTEM', message:`🔨 ${targetKey} banned by ${ws.username} for ${amt} ${unit}.`, timestamp:new Date().toISOString() });
+      return;
+    }
+
+    if (cmd === 'give') {
+      if (!isMod) return sendSystem('❌ You are not a moderator.');
+      // Parse arguments flexibly: /give <username> <itemId> [quantity] [noted]
+      const tokens = parts.slice(1); // remove /give
+      if (tokens.length < 2) return sendSystem('Usage: /give player item_id [quantity] [noted]');
+
+      const rawTarget = tokens.shift();
+      const targetKey = findUserKey(rawTarget);
+      if (!targetKey) return sendSystem(`Player '${rawTarget}' not found.`);
+
+      const itemId = tokens.shift();
+      if (!itemId) return sendSystem('Missing itemId.');
+
+      let qty = 1;
+      let notedFlag = false;
+
+      tokens.forEach(tok => {
+        if (tok.toLowerCase() === 'noted') {
+          notedFlag = true;
+        } else {
+          const n = parseInt(tok);
+          if (!isNaN(n)) qty = n;
+        }
+      });
+
+      if (qty <= 0) qty = 1;
+
+      const itemObj = {
+        id: itemId,
+        quantity: qty,
+        ...(notedFlag ? { noted: true, baseItemId: itemId } : {})
+      };
+
+      // Persist to target's saved inventory
+      const tUser = users.get(targetKey);
+      if (!tUser.savedInventory) tUser.savedInventory = [];
+      tUser.savedInventory.push(itemObj);
+
+      // Send live update if target online
+      if (connectedPlayers.has(targetKey)) {
+        const tWs = connectedPlayers.get(targetKey).ws;
+        tWs.send(JSON.stringify({ type: 'item-given', item: itemObj }));
+      }
+
+      saveUser(targetKey, tUser);
+      sendSystem(`✅ Gave ${qty}${notedFlag?' noted':''} ${itemId}${qty!==1?'s':''} to ${targetKey}.`);
+      return;
+    }
+
+    if (cmd === 'mute') {
+      if (!isMod) return sendSystem('❌ You are not a moderator.');
+      const [_, rawTarget, amountStr] = parts;
+      const targetKey = findUserKey(rawTarget);
+      if (!targetKey || !amountStr) return sendSystem('Usage: /mute <username> <minutes>');
+      const mins = parseInt(amountStr);
+      if (isNaN(mins) || mins <= 0) return sendSystem('Invalid duration.');
+      const until = Date.now() + mins * 60000;
+      const tUser = users.get(targetKey);
+      tUser.mutedUntil = until;
+      saveUser(targetKey, tUser);
+      sendSystem(`🔇 ${targetKey} muted for ${mins} minute${mins!==1?'s':''}.`);
+      if (connectedPlayers.has(targetKey)) {
+        const tWs = connectedPlayers.get(targetKey).ws;
+        tWs.send(JSON.stringify({ type:'chat-message', username:'SYSTEM', message:`🔇 You have been muted for ${mins} minute${mins!==1?'s':''}.`, timestamp:new Date().toISOString() }));
+      }
+      return;
+    }
+
+    if (cmd === 'unmod') {
+      if (!isMod) return sendSystem('❌ You are not a moderator.');
+      const targetKey = findUserKey(parts[1]);
+      if (!targetKey) return sendSystem('Usage: /unmod <username>');
+      const tUser = users.get(targetKey);
+      if (tUser.profile.role === 'mod') {
+        tUser.profile.role = 'player';
+        saveUser(targetKey, tUser);
+        sendSystem(`🔓 ${targetKey} is no longer a moderator.`);
+      } else {
+        sendSystem(`${targetKey} is not a moderator.`);
+      }
+      return;
+    }
+
+    if (cmd === 'unban') {
+      if (!isMod) return sendSystem('❌ You are not a moderator.');
+      const targetKey = findUserKey(parts[1]);
+      if (!targetKey) return sendSystem('Usage: /unban <username>');
+      const tUser = users.get(targetKey);
+      if (tUser.bannedUntil && Date.now() < tUser.bannedUntil) {
+        delete tUser.bannedUntil;
+        saveUser(targetKey, tUser);
+        sendSystem(`🔓 ${targetKey} ban lifted.`);
+      } else {
+        sendSystem(`${targetKey} is not currently banned.`);
+      }
+      return;
+    }
+
+    if (cmd === 'unmute') {
+      if (!isMod) return sendSystem('❌ You are not a moderator.');
+      const targetKey = findUserKey(parts[1]);
+      if (!targetKey) return sendSystem('Usage: /unmute <username>');
+      const tUser = users.get(targetKey);
+      if (tUser.mutedUntil && Date.now() < tUser.mutedUntil) {
+        delete tUser.mutedUntil;
+        saveUser(targetKey, tUser);
+        sendSystem(`🔓 ${targetKey} unmuted.`);
+      } else {
+        sendSystem(`${targetKey} is not currently muted.`);
+      }
+      return;
+    }
+
+    if (cmd === 'help' || cmd === 'commands') {
+      const commonCmds = ['/help','/commands'];
+      const modCmds = ['/mod','/unmod','/ban','/unban','/mute','/unmute','/give'];
+      let list = [...commonCmds];
+      if (isMod) list = list.concat(modCmds);
+      sendSystem(`Available commands: ${list.join(', ')}`);
+      return;
+    }
+
+    // Unknown command
+    return sendSystem('Unknown command.');
+  }
+
+  // If muted, reject message
+  if (user.mutedUntil && Date.now() < user.mutedUntil) {
+    const remainingMs = user.mutedUntil - Date.now();
+    const mins = Math.floor(remainingMs/60000);
+    const secs = Math.floor((remainingMs%60000)/1000);
+    ws.send(JSON.stringify({ type:'chat-message', username:'SYSTEM', message:`❌ You are muted (time left: ${mins}m ${secs}s).`, timestamp:new Date().toISOString() }));
+    return;
+  }
+
+  // Regular chat - broadcast including mod flag
   broadcastToAll({
     type: 'chat-message',
     username: ws.username,
-    message: data.message,
+    isModerator: user.profile?.role === 'mod',
+    message: text,
     timestamp: new Date().toISOString()
   });
 }
@@ -2741,6 +3080,15 @@ function handleSavePlayerData(ws, data) {
     user.savedCompletedBooks = data.completedBooks;
     user.profile.completedBooks = data.completedBooks;
     console.log(`📚 Saved completed books (${data.completedBooks.length} books)`);
+  }
+  
+  // Save settings if provided (e.g. autoLogoutMinutes, audio levels, etc.)
+  if (data.settings && typeof data.settings === 'object') {
+    if (!user.profile.settings) {
+      user.profile.settings = {};
+    }
+    user.profile.settings = { ...user.profile.settings, ...data.settings };
+    console.log('⚙️  Saved settings update:', data.settings);
   }
   
   // Save to disk
@@ -4027,12 +4375,106 @@ function handleBankReorganizeRequest(ws, data) {
   saveUsers();
 }
 
-// ===== Combat System =====
+// ===== Enhanced OSRS-style Combat System =====
 const activeCombats = new Map(); // npcId -> combat state
 const TICK_MS = 500; // 0.5 second tick
-const PLAYER_ATTACK_SPEED_TICKS = 4; // Default 2s attack speed for players
 
-function startCombat(playerUsername, npcId) {
+// Attack speeds for different weapon/NPC types (in ticks)
+const ATTACK_SPEEDS = {
+  player: 4, // Default player attack speed
+  npc: {
+    default: 4,
+    fast: 3,
+    slow: 5,
+    verySlow: 6
+  }
+};
+
+// NPC aggressiveness tracking
+const npcAggressionTimers = new Map(); // npcId -> { startTime, toleranceRegion }
+const AGGRESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes like OSRS
+
+// Combat calculations inspired by OSRS
+function calculateHitChance(attackerLevel, attackerBonus, defenderLevel, defenderBonus) {
+  const attackRoll = attackerLevel + attackerBonus;
+  const defenseRoll = defenderLevel + defenderBonus;
+
+  let hitChance = 0.80; // Higher base accuracy
+  const levelDiff = attackRoll - defenseRoll;
+
+  hitChance += levelDiff * 0.04; // Steeper scaling
+
+  return Math.max(0.40, Math.min(0.99, hitChance));
+}
+
+function calculateMaxHit(level, bonus) {
+  // Reworked OSRS-style max hit formula to keep values in-line across client & server.
+  const effectiveStrength = level + 8; // OSRS effective strength (ignoring prayers for now)
+  const base = Math.floor((effectiveStrength * (bonus + 64)) / 640);
+  const boosted = Math.floor(base * 1.6); // ~60% more generous than base
+  return Math.max(1, boosted + 1);
+}
+
+// XP table for converting experience to levels (OSRS-style)
+const XP_TABLE = [
+  0, 83, 174, 276, 388, 512, 650, 801, 969, 1154, 1358, 1584, 1833, 2107, 2411, 2746, 3115, 3523, 3973, 4470, 5018, 5624, 6291, 7028, 7842, 8740, 9730, 10824, 12031, 13363, 14833, 16456, 18247, 20224, 22406, 24815, 27473, 30408, 33648, 37224, 41171, 45529, 50339, 55649, 61512, 67983, 75127, 83014, 91721, 101333, 111945, 123660, 136594, 150872, 166636, 184040, 203254, 224466, 247886, 273742, 302288, 333804, 368599, 407015, 449428, 496254, 547953, 605032, 668051, 737627, 814445, 899257, 992895, 1096278, 1210421, 1336443, 1475581, 1629200, 1798808, 1986068, 2192818, 2421087, 2673114, 2951373, 3258594, 3597792, 3972294, 4385776, 4842295, 5346332, 5902831, 6517253, 7195629, 7944614, 8771558, 9684577, 10692629, 11805606, 13034431, 14391160, 15889109, 17542976, 19368992, 21385073, 23611006, 26068632, 28782069, 31777943, 35085654, 38737661, 42769801, 47221641, 52136869, 57563718, 63555443, 70170840, 77474828, 85539082, 94442737, 104273167
+];
+
+function getLevelFromXP(xp, skillName) {
+  // Special handling for hitpoints - minimum level 10
+  if (skillName === 'hitpoints') {
+    if (xp < XP_TABLE[10]) return 10; // Minimum hitpoints level
+  }
+  
+  // Find the highest level where required XP <= current XP
+  for (let level = XP_TABLE.length - 1; level >= 1; level--) {
+    if (xp >= XP_TABLE[level]) {
+      return Math.max(level, skillName === 'hitpoints' ? 10 : 1);
+    }
+  }
+  
+  return skillName === 'hitpoints' ? 10 : 1; // Minimum level
+}
+
+function isNPCAggressive(npcId, playerUsername) {
+  const npc = npcs.get(npcId);
+  if (!npc) return false;
+  
+  const npcDef = npcDefinitions[npc.type] || {};
+  
+  // Some NPCs are never aggressive
+  if (!npcDef.aggressive) return false;
+  
+  // TODO: Temporarily commented out random retreating to reduce frustration
+  // Check if NPC has become tolerant due to time
+  // const aggressionData = npcAggressionTimers.get(npcId);
+  // if (aggressionData && Date.now() - aggressionData.startTime > AGGRESSION_TIMEOUT_MS) {
+  //   return false;
+  // }
+  
+  // TODO: Temporarily commented out combat level based aggression
+  // Combat level based aggression (aggressive to players <= 2 * NPC level)
+  // const playerData = connectedPlayers.get(playerUsername);
+  // if (playerData && playerData.combatLevel) {
+  //   const npcLevel = npcDef.combatLevel || 1;
+  //   if (playerData.combatLevel > npcLevel * 2) {
+  //     return false;
+  //   }
+  // }
+  
+  return true;
+}
+
+function startAggressionTimer(npcId, playerUsername) {
+  if (!npcAggressionTimers.has(npcId)) {
+    npcAggressionTimers.set(npcId, {
+      startTime: Date.now(),
+      toleranceRegion: null // Could implement region-based tolerance later
+    });
+  }
+}
+
+function startCombat(playerUsername, npcId, combatStyle = null) {
   const npc = npcs.get(npcId);
   if (!npc) return;
   if (!connectedPlayers.has(playerUsername)) return;
@@ -4040,19 +4482,44 @@ function startCombat(playerUsername, npcId) {
   // If this NPC is already in combat, ignore for now
   if (activeCombats.has(npcId)) return;
 
-  console.log(`⚔️ Combat started: ${playerUsername} vs ${npc.name}`);
+  console.log(`⚔️ Combat started: ${playerUsername} vs ${npc.name} (${combatStyle?.type || 'melee'})`);
 
   activeCombats.set(npcId, {
     npcId,
     player: playerUsername,
     lastPlayerAttack: 0,
-    lastNPCAttack: 0
+    lastNPCAttack: 0,
+    combatStyle: combatStyle || { type: 'melee', style: 'accurate' }
   });
+
+  // If NPC is beyond the edge of its wander radius, it will REFUSE combat and start retreating instead.
+  const distFromSpawnForStart = Math.abs(npc.x - npc.spawnX) + Math.abs(npc.y - npc.spawnY);
+  if (false && distFromSpawnForStart > npc.wanderRadius) {
+    // Flag NPC to retreat; clear any combat intentions
+    npc.retreating = true;
+    npc.isAggressive = false;
+    npc.targetPlayer = null;
+    npc.isStopped = false;
+
+    // Kick-start movement if it was idle
+    startNPCMovement(npcId);
+
+    // Inform the requesting player so their client can clear attack timer
+    const attackerWs = connectedPlayers.get(playerUsername)?.ws;
+    if (attackerWs && attackerWs.readyState === WebSocket.OPEN) {
+      attackerWs.send(JSON.stringify({ type: 'npc-retreating', npcId, reason: 'edge-of-radius' }));
+    }
+    return; // Cancel combat start
+  }
 
   // Mark NPC aggressive and lock its wander AI
   npc.isAggressive = true;
+  npc.retreating = false;
   npc.targetPlayer = playerUsername;
   npc.isStopped = true; // Prevent wander logic
+
+  // Start aggression timer for tolerance mechanics
+  startAggressionTimer(npcId, playerUsername);
 
   // Cancel any scheduled random-movement timer so it doesn't keep firing
   if (npcMovementTimers.has(npcId)) {
@@ -4107,11 +4574,115 @@ function processCombatTick() {
       continue;
     }
 
-    // --- Player attacks NPC (only if exactly adjacent: distance 1) ---
-    if (distance === 1 && now - combat.lastPlayerAttack >= PLAYER_ATTACK_SPEED_TICKS * TICK_MS) {
+    // === NPC path-finding toward player (simplified to avoid oscillation) ===
+    if (distance > 1 && distance <= 8) {
+      // Direct straight-line pursuit (OSRS-style safespot friendly)
+      const deltaX = playerData.position.x - npc.x;
+      const deltaY = playerData.position.y - npc.y;
+
+      // Attempt diagonal move first
+      let stepX = Math.sign(deltaX);
+      let stepY = Math.sign(deltaY);
+      let targetX = npc.x + stepX;
+      let targetY = npc.y + stepY;
+
+      // If the direct tile toward the player is blocked, do nothing this tick.
+      if (!isPositionWalkableForNPC(targetX, targetY)) {
+        stepX = 0;
+        stepY = 0;
+      }
+
+      if (stepX !== 0 || stepY !== 0) {
+        npc.x = targetX;
+        npc.y = targetY;
+
+        npc.movementDirection = stepX === 0 ? (stepY > 0 ? 'down' : 'up')
+          : (stepX > 0 ? (stepY > 0 ? 'down-right' : (stepY < 0 ? 'up-right' : 'right'))
+                       : (stepY > 0 ? 'down-left' : (stepY < 0 ? 'up-left' : 'left')));
+
+        broadcastToAll({
+          type: 'npc-move',
+          npcId,
+          position: { x: npc.x, y: npc.y },
+          direction: npc.movementDirection,
+          timestamp: now
+        });
+
+        // Wait until next tick to attack (can't attack mid-move)
+        continue;
+      }
+    }
+
+    // --- Player attacks NPC (melee: distance 1, ranged: distance <= 8) ---
+    const playerAttackSpeed = ATTACK_SPEEDS.player; // Could be modified by weapon type
+    const maxAttackDistance = combat.combatStyle?.type === 'ranged' ? 8 : 1;
+    
+    if (distance <= maxAttackDistance && now - combat.lastPlayerAttack >= playerAttackSpeed * TICK_MS) {
       combat.lastPlayerAttack = now;
-      const maxHit = 3; // placeholder until equipment & stats
-      const damage = Math.floor(Math.random() * (maxHit + 1));
+      
+      // Get player stats for hit calculation based on combat style
+      const user = users.get(combat.player);
+      const playerSkills = user?.profile?.skills || {}; // Use profile.skills which stores actual levels
+      
+      let attackLevel;
+      let skillXpType = 'attack';
+      
+      if (combat.combatStyle?.type === 'ranged') {
+        attackLevel = playerSkills.ranged || 1;
+        skillXpType = 'ranged';
+      } else {
+        attackLevel = playerSkills.attack || 1;
+        skillXpType = 'attack';
+      }
+      
+      console.log(`⚔️ Combat calculation: ${skillXpType} level ${attackLevel} vs NPC defence ${npcDef.defenceLevel || 1}`);
+      
+      const defenceLevel = npcDef.defenceLevel || 1;
+      
+      // Calculate equipment bonuses from player's equipped gear
+      let attackBonus = 0;
+      let strengthBonus = 0;
+      
+      const playerEquipment = user?.profile?.equipment || {};
+      if (combat.combatStyle?.type === 'ranged') {
+        // For ranged: weapon provides ranged attack, arrows provide ranged strength
+        const weapon = playerEquipment.weapon;
+        const arrows = playerEquipment.arrows;
+        
+        if (weapon) {
+          const weaponDef = getItemDefinition(weapon.id);
+          attackBonus += weaponDef?.equipment?.combatStats?.rangedAttack || 0;
+        }
+        
+        if (arrows) {
+          const arrowDef = getItemDefinition(arrows.id);
+          strengthBonus += arrowDef?.equipment?.combatStats?.rangedStrength || 0;
+        }
+      } else {
+        // For melee: weapon provides both attack and strength
+        const weapon = playerEquipment.weapon;
+        if (weapon) {
+          const weaponDef = getItemDefinition(weapon.id);
+          attackBonus += weaponDef?.equipment?.combatStats?.meleeAttack || 0;
+          strengthBonus += weaponDef?.equipment?.combatStats?.meleeStrength || 0;
+        }
+      }
+      
+      console.log(`⚔️ Equipment bonuses: attack +${attackBonus}, strength +${strengthBonus}`);
+      
+      // Calculate hit chance and damage with equipment bonuses
+      const hitChance = calculateHitChance(attackLevel, attackBonus, defenceLevel, 0);
+      const hits = Math.random() < hitChance;
+      
+      let damage = 0;
+      if (hits) {
+        const maxHit = calculateMaxHit(attackLevel, strengthBonus);
+        damage = Math.floor(Math.random() * (maxHit + 1));
+        console.log(`⚔️ Hit! Max hit: ${maxHit}, rolled: ${damage}`);
+      } else {
+        console.log(`⚔️ Miss! Hit chance was ${(hitChance * 100).toFixed(1)}%`);
+      }
+      
       npc.health = Math.max(0, npc.health - damage);
 
       broadcastToAll({
@@ -4124,14 +4695,31 @@ function processCombatTick() {
         timestamp: now
       });
 
-      // Award attack XP to player
-      const xpGained = damage * 4;
-      if (playerData && playerData.skills) {
-        playerData.skills.attack = (playerData.skills.attack || 0) + xpGained;
+      // Award XP to player based on combat style
+      const xpGained = damage * 4; // Base XP
+      const hitpointsXP = Math.floor(damage * 1.33); // Hitpoints XP
+      
+      if (user && user.savedSkills) {
+        // Award XP to the appropriate skill (savedSkills stores XP values)
+        user.savedSkills[skillXpType] = (user.savedSkills[skillXpType] || 1) + xpGained;
+        user.savedSkills.hitpoints = (user.savedSkills.hitpoints || 10) + hitpointsXP;
+        
+        // Convert XP to levels for profile.skills (which stores actual levels)
+        if (user.profile && user.profile.skills) {
+          user.profile.skills[skillXpType] = getLevelFromXP(user.savedSkills[skillXpType], skillXpType);
+          user.profile.skills.hitpoints = getLevelFromXP(user.savedSkills.hitpoints, 'hitpoints');
+          
+          console.log(`📊 XP Update: ${skillXpType} XP ${user.savedSkills[skillXpType]} → Level ${user.profile.skills[skillXpType]}`);
+        }
+        
+        // Save to disk
+        saveUsers();
+        
+        // Broadcast the actual skill levels, not XP values
         broadcastToAll({
           type: 'skills-sync',
           username: combat.player,
-          skills: playerData.skills,
+          skills: user.profile.skills, // Send levels, not XP
           timestamp: now
         });
       }
@@ -4139,51 +4727,83 @@ function processCombatTick() {
       // (player HP unchanged during outgoing attack)
 
       if (npc.health <= 0) {
-        // NPC dies
-        // Generate drops before removal
-        const drops = calculateDrops(npc.type);
-        for (const drop of drops) {
-          if (!itemDefinitions[drop.itemId]) continue; // skip unknown items
-          const itemObj = { id: drop.itemId, quantity: drop.quantity };
-          // Try stacking first
-          const stacked = tryStackWithExistingItems(itemObj, npc.x, npc.y);
-          if (!stacked) {
-            const floorItem = createServerFloorItem(itemObj, npc.x, npc.y, npcId);
-            broadcastToAll({
-              type: 'floor-item-created',
-              floorItem: {
-                id: floorItem.id,
-                item: floorItem.item,
-                x: floorItem.x,
-                y: floorItem.y,
-                spawnTime: floorItem.spawnTime,
-                droppedBy: floorItem.droppedBy
-              },
-              droppedBy: npcId,
-              timestamp: now
-            });
+        // NPC dies - but don't remove immediately, set dying state
+        if (!npc.isDying) {
+          npc.isDying = true;
+          npc.deathTime = now;
+          npc.isStopped = true; // Stop all AI movement
+          
+          // Broadcast death state to clients for fade animation
+          broadcastToAll({
+            type: 'npc-death',
+            npcId: npcId,
+            timestamp: now
+          });
+          
+          // Generate drops
+          const drops = calculateDrops(npc.type);
+          for (const drop of drops) {
+            if (!itemDefinitions[drop.itemId]) continue; // skip unknown items
+            const itemObj = { id: drop.itemId, quantity: drop.quantity };
+            // Try stacking first
+            const stacked = tryStackWithExistingItems(itemObj, npc.x, npc.y);
+            if (!stacked) {
+              const floorItem = createServerFloorItem(itemObj, npc.x, npc.y, npcId);
+              broadcastToAll({
+                type: 'floor-item-created',
+                floorItem: {
+                  id: floorItem.id,
+                  item: floorItem.item,
+                  x: floorItem.x,
+                  y: floorItem.y,
+                  spawnTime: floorItem.spawnTime,
+                  droppedBy: floorItem.droppedBy
+                },
+                droppedBy: npcId,
+                timestamp: now
+              });
+            }
           }
+          
+          // Schedule actual removal after death animation (1.5 seconds)
+          setTimeout(() => {
+            removeNPC(npcId);
+            // Schedule respawn
+            if (!npcRespawnTimers.has(npcId)) {
+              console.log(`⏳ Scheduling respawn for ${npc.name} (${npcId}) in ${NPC_RESPAWN_TIME_MS} ms`);
+              npcRespawnTimers.set(npcId, setTimeout(() => {
+                console.log(`🔄 Respawning NPC ${npc.type} at (${npc.spawnX}, ${npc.spawnY}) after death of ${npcId}`);
+                createNPC(npc.type, npc.spawnX, npc.spawnY);
+                npcRespawnTimers.delete(npcId);
+              }, NPC_RESPAWN_TIME_MS));
+            }
+          }, 1500); // 1.5 second death animation
+          
+          activeCombats.delete(npcId);
+          npcAggressionTimers.delete(npcId); // Clear aggression timer
         }
-
-        removeNPC(npcId);
-        // Schedule respawn
-        if (!npcRespawnTimers.has(npcId)) {
-          console.log(`⏳ Scheduling respawn for ${npc.name} (${npcId}) in ${NPC_RESPAWN_TIME_MS} ms`);
-          npcRespawnTimers.set(npcId, setTimeout(() => {
-            console.log(`🔄 Respawning NPC ${npc.type} at (${npc.spawnX}, ${npc.spawnY}) after death of ${npcId}`);
-            createNPC(npc.type, npc.spawnX, npc.spawnY);
-            npcRespawnTimers.delete(npcId);
-          }, NPC_RESPAWN_TIME_MS));
-        }
-        activeCombats.delete(npcId);
-        continue;
+        continue; // Skip further combat processing for dying NPC
       }
     }
 
     // --- NPC tries to attack player (also require exact adjacency) ---
-    if (distance === 1 && now - combat.lastNPCAttack >= (npcDef.attackSpeed || 4) * TICK_MS) {
+    const npcAttackSpeed = npcDef.attackSpeed || ATTACK_SPEEDS.npc.default;
+    if (distance === 1 && now - combat.lastNPCAttack >= npcAttackSpeed * TICK_MS) {
       combat.lastNPCAttack = now;
-      const damage = Math.floor(Math.random() * ((npcDef.maxHit || 1) + 1));
+      
+      // Get NPC stats for hit calculation  
+      const npcAttackLevel = npcDef.attackLevel || 1;
+      const playerDefenceLevel = playerData.skills?.defence || 1;
+      
+      // Calculate hit chance and damage
+      const hitChance = calculateHitChance(npcAttackLevel, 0, playerDefenceLevel, 0);
+      const hits = Math.random() < hitChance;
+      
+      let damage = 0;
+      if (hits) {
+        const maxHit = npcDef.maxHit || 1;
+        damage = Math.floor(Math.random() * (maxHit + 1));
+      }
 
       // Apply damage to player's HP
       if (playerData.currentHP === undefined) {
@@ -4213,6 +4833,18 @@ function processCombatTick() {
         handlePlayerDeath(combat.player);
         continue; // Combat ends after death
       }
+    }
+
+    // Disengage combat if too far apart (>8 tiles)
+    if (distance > 8) {
+      console.log(`🛑 ${npc.name} (${npcId}) lost target due to distance`);
+      npc.isAggressive = false;
+      npc.targetPlayer = null;
+      npc.isStopped = false;
+      activeCombats.delete(npcId);
+      startNPCMovement(npcId);
+      broadcastToAll({ type: 'npc-resume', npcId, timestamp: now });
+      continue;
     }
 
     // Simple NPC chasing logic (move one step towards player each tick until adjacent)
@@ -4514,3 +5146,105 @@ function removeDiggingHoleFromServer(x, y, removedBy = 'server') {
     console.log(`🕳️ Digging hole at (${x}, ${y}) removed by ${removedBy}`);
   }
 } 
+
+// Helper: find a user key (exact or case-insensitive) from a supplied name.
+function findUserKey(name) {
+  if (!name) return null;
+  // First try exact match
+  if (users.has(name)) return name;
+  // Fallback: case-insensitive lookup
+  const lower = name.toLowerCase();
+  for (const key of users.keys()) {
+    if (key.toLowerCase() === lower) {
+      return key;
+    }
+  }
+  return null;
+} 
+
+/**
+ * Handle hitpoints synchronization
+ */
+function handleHitpointsSync(ws, data) {
+  if (!ws.username) return;
+
+  const user = users.get(ws.username);
+  if (!user) return;
+
+  // Coerce numbers and clamp to sensible range (>=0)
+  let currentHP = Number(data.currentHP);
+  let maxHP = Number(data.maxHP);
+  if (isNaN(currentHP) || currentHP < 0) currentHP = 0;
+  if (isNaN(maxHP) || maxHP <= 0) maxHP = 1;
+  if (currentHP > maxHP) currentHP = maxHP;
+
+  console.log(`🩺 Syncing HP for ${ws.username}: ${currentHP}/${maxHP}`);
+
+  // Persist to user profile so it survives reconnect / reload
+  user.profile.currentHP = currentHP;
+  user.profile.maxHP = maxHP;
+  user.savedCurrentHP = currentHP;
+  user.savedMaxHP = maxHP;
+
+  // Save to disk
+  saveUsers();
+
+  // Update connected player cache
+  const playerData = connectedPlayers.get(ws.username);
+  if (playerData) {
+    playerData.currentHP = currentHP;
+    playerData.maxHP = maxHP;
+  }
+
+  // Broadcast to other players (excluding sender) so their UIs update
+  broadcastToAll({
+    type: 'player-health-update',
+    username: ws.username,
+    currentHP: currentHP,
+    maxHP: maxHP
+  }, ws);
+
+  // Optionally acknowledge sync to sender (could be used for latency tests)
+  ws.send(JSON.stringify({
+    type: 'hitpoints-sync-ack',
+    currentHP: currentHP,
+    maxHP: maxHP,
+    timestamp: Date.now()
+  }));
+}
+
+app.post('/api/update-settings', (req, res) => {
+  try {
+    // Validate active session using cookie (same mechanism as other auth-protected routes)
+    const sessionId = req.cookies?.sessionId;
+    const session = validateSession(sessionId);
+    if (!session) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
+    // Expect a { settings: { ... } } payload
+    const { settings } = req.body || {};
+    if (!settings || typeof settings !== 'object') {
+      return res.status(400).json({ success: false, error: 'Invalid settings payload' });
+    }
+
+    const user = users.get(session.username);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    // Merge new settings into existing profile settings
+    if (!user.profile.settings) {
+      user.profile.settings = {};
+    }
+    user.profile.settings = { ...user.profile.settings, ...settings };
+
+    // Persist immediately so changes survive crashes
+    saveUser(session.username, user);
+
+    return res.json({ success: true, settings: user.profile.settings });
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    return res.status(500).json({ success: false, error: 'Server error' });
+  }
+});

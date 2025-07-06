@@ -243,7 +243,7 @@ function createBankInterface() {
     border: 2px solid #34495e;
     border-radius: 8px;
     width: 95%;
-    max-width: 1020px;
+    max-width: 1060px; /* widened further for 5-column inventory without scroll */
     height: 85%;
     max-height: 730px;
     display: flex;
@@ -511,7 +511,8 @@ function createInventorySection() {
     max-height: 530px;
     overflow-y: hidden;
     overflow-x: hidden;
-    min-width: 200px;
+    min-width: 246px; /* widened to fit 5 columns of slots without scroll */
+    flex: 0 0 246px;
   `;
   
   const header = document.createElement('h3');
@@ -557,58 +558,6 @@ function createInventorySection() {
     depositAllBtn.style.background = 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)';
     depositAllBtn.style.transform = 'translateY(0)';
     depositAllBtn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
-  });
-  
-  // Add Organize Bank button
-  const organizeBankBtn = document.createElement('button');
-  organizeBankBtn.textContent = 'Organize Bank';
-  organizeBankBtn.className = 'organize-bank-btn';
-  organizeBankBtn.style.cssText = `
-    width: 100%;
-    padding: 8px 12px;
-    background: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%);
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-size: 13px;
-    font-weight: bold;
-    cursor: pointer;
-    margin-bottom: 8px;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  `;
-  
-  organizeBankBtn.addEventListener('click', () => {
-    console.log('🏦 Organize Bank button clicked');
-    
-    // Debug: Check if we're in the right context
-    console.log('🏦 Button context check:', {
-      playerBankExists: !!playerBank,
-      playerBankLength: playerBank ? playerBank.length : 'N/A',
-      bankInterfaceOpen: bankInterface.open,
-      functionExists: typeof consolidateBankStacks
-    });
-    
-    try {
-      consolidateBankStacks();
-    } catch (error) {
-      console.error('🏦 Error during consolidation:', error);
-      if (window.inventoryModule && window.inventoryModule.showNotification) {
-        window.inventoryModule.showNotification('Error organizing bank: ' + error.message, 'error');
-      }
-    }
-  });
-  
-  organizeBankBtn.addEventListener('mouseenter', () => {
-    organizeBankBtn.style.background = 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)';
-    organizeBankBtn.style.transform = 'translateY(-1px)';
-    organizeBankBtn.style.boxShadow = '0 3px 6px rgba(0, 0, 0, 0.3)';
-  });
-  
-  organizeBankBtn.addEventListener('mouseleave', () => {
-    organizeBankBtn.style.background = 'linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%)';
-    organizeBankBtn.style.transform = 'translateY(0)';
-    organizeBankBtn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
   });
   
   // Add deposit amount controls
@@ -744,7 +693,7 @@ function createInventorySection() {
   grid.className = 'bank-inventory-grid';
   grid.style.cssText = `
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 3px;
     max-height: 450px;
     overflow-y: auto;
@@ -871,6 +820,9 @@ function createInventorySection() {
       slot.style.opacity = '0.3';
     }
     
+    // Ensure drag/drop handlers exist for all slots (occupied or empty)
+    addInventorySlotDragFunctionality(slot, i);
+    
     grid.appendChild(slot);
   }
   
@@ -950,7 +902,6 @@ function createInventorySection() {
   
   section.appendChild(header);
   section.appendChild(depositAllBtn);
-  section.appendChild(organizeBankBtn);
   section.appendChild(depositAmountContainer);
   section.appendChild(grid);
   
@@ -965,31 +916,78 @@ function addInventorySlotDragFunctionality(slot, slotIndex) {
   const item = playerInventory[slotIndex];
   
   if (item) {
-  slot.draggable = true;
-  
-  slot.addEventListener('dragstart', (e) => {
-    console.log(`🔄 Starting drag from inventory slot ${slotIndex}`);
+    // Store index during drag so we can reference on drop
+    if (!bankInterface.dragInvSlot && bankInterface.dragInvSlot !== 0) {
+      bankInterface.dragInvSlot = null;
+    }
+    slot.draggable = true;
+    
+    slot.addEventListener('dragstart', (e) => {
+      console.log(`🔄 Starting drag from inventory slot ${slotIndex}`);
       // Hide any existing tooltips when starting drag
       hideBankTooltip();
       
-    e.dataTransfer.setData('text/plain', JSON.stringify({
-      type: 'inventory-item',
-      fromSlot: slotIndex,
+      e.dataTransfer.setData('text/plain', JSON.stringify({
+        type: 'inventory-item',
+        fromSlot: slotIndex,
         item: item
-    }));
-    slot.classList.add('dragging');
-  });
-  
-  slot.addEventListener('dragend', (e) => {
-    console.log(`🔄 Ending drag from inventory slot ${slotIndex}`);
-    slot.classList.remove('dragging');
+      }));
+      slot.classList.add('dragging');
+      bankInterface.dragInvSlot = slotIndex;
+    });
+    
+    slot.addEventListener('dragend', (e) => {
+      console.log(`🔄 Ending drag from inventory slot ${slotIndex}`);
+      slot.classList.remove('dragging');
       // Hide tooltip after drag ends to ensure clean state
       hideBankTooltip();
-  });
+      bankInterface.dragInvSlot = null;
+    });
   } else {
     slot.draggable = false;
     slot.removeAttribute('draggable');
   }
+  
+  // --- Enable dropping to reorder inventory slots within the bank interface ---
+  slot.addEventListener('dragover', (e) => {
+    if (bankInterface.dragInvSlot !== null && bankInterface.dragInvSlot !== undefined) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      slot.classList.add('drag-over');
+    }
+  });
+  
+  slot.addEventListener('dragleave', (e) => {
+    slot.classList.remove('drag-over');
+  });
+  
+  slot.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    slot.classList.remove('drag-over');
+    const from = bankInterface.dragInvSlot;
+    const to = slotIndex;
+    bankInterface.dragInvSlot = null;
+    if (from === null || from === undefined || from === to) return;
+
+    const inventoryArr = window.inventoryModule?.getPlayerInventory?.();
+    if (!inventoryArr || !inventoryArr[from]) return;
+
+    const temp = inventoryArr[to];
+    inventoryArr[to] = inventoryArr[from];
+    inventoryArr[from] = temp || null;
+
+    if (window.inventoryModule?.updateInventoryDisplay) {
+      window.inventoryModule.updateInventoryDisplay();
+    }
+    refreshInventorySection();
+
+    if (window.isUserOnline && window.isUserOnline() && window.syncInventoryWithServer) {
+      window.syncInventoryWithServer(inventoryArr);
+    }
+    console.log(`🔄 Swapped inventory slots ${from} and ${to} via drag-and-drop in bank.`);
+  });
 }
 
 /**
@@ -3726,14 +3724,16 @@ function getDepositAmount(item) {
     return item.quantity || 1;
   }
   
-  // For all items, limit by the actual slot quantity to avoid accumulation issues
-  // depositItemsByType will handle finding multiple slots for non-stackable items
   const itemDef = window.inventoryModule ? window.inventoryModule.getItemDefinition(item.id) : null;
   const isStackable = itemDef && itemDef.stackable;
   const isNoted = window.inventoryModuleFunctions && window.inventoryModuleFunctions.isItemNoted && window.inventoryModuleFunctions.isItemNoted(item);
   
-  // Always limit by slot quantity to prevent accumulation bugs
-  return Math.min(bankInterface.leftClickDepositAmount, item.quantity || 1);
+  // For stackable or noted items we cannot deposit more than slot quantity
+  if (isStackable || isNoted) {
+    return Math.min(bankInterface.leftClickDepositAmount, item.quantity || 1);
+  }
+  // Non-stackable: allow higher amount so depositItemsByType can pick multiple slots
+  return bankInterface.leftClickDepositAmount;
 }
 
 /**

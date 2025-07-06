@@ -30,7 +30,9 @@ const ORE_DEFINITIONS = {
     level: 1,
     experience: 17.5,
     dropItem: 'copper_ore',
-    respawnTime: 5000
+    respawnTime: 5000,
+    customImage: 'images/objects/ore/copper_ore.png',
+    depletedImage: 'images/objects/ore/copper_ore_depleted.png'
   },
   'ore_tin': {
     name: 'Tin Ore', 
@@ -38,7 +40,9 @@ const ORE_DEFINITIONS = {
     level: 1,
     experience: 17.5,
     dropItem: 'tin_ore',
-    respawnTime: 5000
+    respawnTime: 5000,
+    customImage: 'images/objects/ore/tin_ore.png',
+    depletedImage: 'images/objects/ore/tin_ore_depleted.png'
   },
   'ore_iron': {
     name: 'Iron Ore',
@@ -46,7 +50,9 @@ const ORE_DEFINITIONS = {
     level: 10,
     experience: 35,
     dropItem: 'iron_ore',
-    respawnTime: 5000
+    respawnTime: 5000,
+    customImage: 'images/objects/ore/iron_ore.png',
+    depletedImage: 'images/objects/ore/iron_ore_depleted.png'
   },
   'ore_silver': {
     name: 'Silver Ore',
@@ -62,7 +68,9 @@ const ORE_DEFINITIONS = {
     level: 30,
     experience: 65,
     dropItem: 'gold_ore',
-    respawnTime: 12000
+    respawnTime: 12000,
+    customImage: 'images/objects/ore/gold_ore.glb',
+    depletedImage: 'images/objects/ore/gold_ore_depleted.glb'
   },
   'ore_mithril': {
     name: 'Mithril Ore',
@@ -648,28 +656,36 @@ function depleteOreConfirmed(oreType, x, y, oreElement) {
   const oreKey = `${x},${y}`;
   
   // Store original ore appearance in global state
-  const originalText = oreElement.textContent;
+  const originalBackground = oreElement.style.backgroundImage;
   const originalTitle = oreElement.title;
   
   // Add to global depleted state
   depletedOreStates.set(oreKey, {
     oreType: oreType,
-    originalText: originalText,
+    originalBackground,
     originalTitle: originalTitle,
     depletedAt: Date.now()
   });
   
   // Update current element to show depleted appearance
-  oreElement.textContent = '🪨';
-  oreElement.title = 'Depleted ore (respawning...)';
-  oreElement.dataset.depleted = 'true';
+  const oreDef = ORE_DEFINITIONS[oreType];
+  if (oreDef && oreDef.depletedImage) {
+    oreElement.style.backgroundImage = `url('${oreDef.depletedImage}')`;
+    oreElement.style.backgroundSize = 'contain';
+    oreElement.style.backgroundRepeat = 'no-repeat';
+    oreElement.style.backgroundPosition = 'center';
+    oreElement.innerHTML = '';
+    oreElement.title = 'Depleted ore (respawning...)';
+    oreElement.dataset.depleted = 'true';
+    console.log(`Mining: Ore ${oreType} at (${x}, ${y}) depleted locally, updated image to ${oreDef.depletedImage}`);
+  } else {
+    console.warn(`Mining: Ore ${oreType} at (${x}, ${y}) depleted locally, but no depletedImage defined.`);
+  }
   
   // Force world re-render to immediately show the change
   if (window.worldModule && window.worldModule.forceWorldRerender) {
     window.worldModule.forceWorldRerender();
   }
-  
-  console.log(`Mining: Ore ${oreType} at (${x}, ${y}) depleted locally`);
 }
 
 // Handle denied ore depletion from server
@@ -701,10 +717,21 @@ function respawnOreFromServer(oreType, x, y) {
   const existingElement = document.querySelector(`.world-object[data-type="${oreType}"][data-x="${x}"][data-y="${y}"]`);
   if (existingElement) {
     const oreDef = ORE_DEFINITIONS[oreType];
-    existingElement.textContent = oreDef.icon;
-    existingElement.title = oreDef.name;
-    existingElement.dataset.depleted = 'false';
-    console.log(`Mining: Updated existing DOM element for respawned ore at (${x}, ${y})`);
+    if (oreDef && oreDef.customImage) {
+      existingElement.style.backgroundImage = `url('${oreDef.customImage}')`;
+      existingElement.style.backgroundSize = 'contain';
+      existingElement.style.backgroundRepeat = 'no-repeat';
+      existingElement.style.backgroundPosition = 'center';
+      existingElement.innerHTML = '';
+      existingElement.title = oreDef.name;
+      existingElement.dataset.depleted = 'false';
+      console.log(`Mining: Updated existing DOM element for respawned ore at (${x}, ${y}), image updated to ${oreDef.customImage}`);
+    } else {
+      existingElement.textContent = oreDef.icon;
+      existingElement.title = oreDef.name;
+      existingElement.dataset.depleted = 'false';
+      console.log(`Mining: Updated existing DOM element for respawned ore at (${x}, ${y}), text content updated`);
+    }
   } else {
     console.log(`Mining: No DOM element found for respawned ore at (${x}, ${y}) - will be handled by next render`);
   }

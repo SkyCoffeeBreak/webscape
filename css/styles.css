@@ -504,65 +504,65 @@ span:not(.skill-icon):not(.skill-bubble-icon):not(.emoji) {
 
 /* ------------------ COMBAT SKILLS ------------------ */
 .skill[data-skill="attack"] {
-  background: linear-gradient(to bottom, rgba(170, 0, 0, 0.4), rgba(170, 0, 0, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(170, 0, 0, 0.4), rgba(170, 0, 0, 0.4) 90%, #333333);
 }
 .skill[data-skill="magic"] {
-  background: linear-gradient(to bottom, rgba(0, 100, 255, 0.4), rgba(0, 100, 255, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(0, 100, 255, 0.4), rgba(0, 100, 255, 0.4) 90%, #333333);
 }
 .skill[data-skill="ranged"] {
-  background: linear-gradient(to bottom, rgba(0, 120, 0, 0.4), rgba(0, 120, 0, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(0, 120, 0, 0.4), rgba(0, 120, 0, 0.4) 90%, #333333);
 }
 .skill[data-skill="blasting"] {
-  background: linear-gradient(to bottom, rgba(140, 0, 255, 0.4), rgba(140, 0, 255, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(140, 0, 255, 0.4), rgba(140, 0, 255, 0.4) 90%, #333333);
 }
 .skill[data-skill="defence"] {
-  background: linear-gradient(to bottom, rgba(27, 38, 201, 0.4), rgba(27, 38, 201, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(27, 38, 201, 0.4), rgba(27, 38, 201, 0.4) 90%, #333333);
 }
 .skill[data-skill="hitpoints"] {
-  background: linear-gradient(to bottom, rgba(255, 57, 57, 0.4), rgba(255, 57, 57, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(255, 57, 57, 0.4), rgba(255, 57, 57, 0.4) 90%, #333333);
 }
 .skill[data-skill="prayer"] {
-  background: linear-gradient(to bottom, rgba(254, 255, 193, 0.45), rgba(254, 255, 193, 0.45) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(254, 255, 193, 0.45), rgba(254, 255, 193, 0.45) 90%, #333333);
 }
 .skill[data-skill="slayer"] {
-  background: linear-gradient(to bottom, rgba(95, 3, 19, 0.4), rgba(95, 3, 19, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(95, 3, 19, 0.4), rgba(95, 3, 19, 0.4) 90%, #333333);
 }
 
 /* ------------------ GATHERING SKILLS ------------------ */
 .skill[data-skill="mining"] {
-  background: linear-gradient(to bottom, rgba(75, 75, 110, 0.4), rgba(75, 75, 110, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(75, 75, 110, 0.4), rgba(75, 75, 110, 0.4) 90%, #333333);
 }
 .skill[data-skill="fishing"] {
-  background: linear-gradient(to bottom, rgba(0, 150, 200, 0.4), rgba(0, 150, 200, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(0, 150, 200, 0.4), rgba(0, 150, 200, 0.4) 90%, #333333);
 }
 .skill[data-skill="harvesting"] {
-  background: linear-gradient(to bottom, rgba(80, 120, 40, 0.45), rgba(80, 120, 40, 0.45) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(80, 120, 40, 0.45), rgba(80, 120, 40, 0.45) 90%, #333333);
 }
 .skill[data-skill="woodcutting"] {
-  background: linear-gradient(to bottom, rgba(118, 84, 47, 0.45), rgba(118, 84, 47, 0.45) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(118, 84, 47, 0.45), rgba(118, 84, 47, 0.45) 90%, #333333);
 }
 .skill[data-skill="digging"] {
-  background: linear-gradient(to bottom, rgba(148, 87, 50, 0.45), rgba(148, 87, 50, 0.45) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(148, 87, 50, 0.45), rgba(148, 87, 50, 0.45) 90%, #333333);
 }
 
 /* ------------------ ARTISAN SKILLS ------------------ */
 .skill[data-skill="smithing"] {
-  background: linear-gradient(to bottom, rgba(65, 44, 80, 0.5), rgba(65, 44, 80, 0.5) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(65, 44, 80, 0.5), rgba(65, 44, 80, 0.5) 90%, #333333);
 }
 .skill[data-skill="masonry"] {
-  background: linear-gradient(to bottom, rgba(108, 148, 165, 0.4), rgba(108, 148, 165, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(108, 148, 165, 0.4), rgba(108, 148, 165, 0.4) 90%, #333333);
 }
 .skill[data-skill="cooking"] {
-  background: linear-gradient(to bottom, rgba(200, 80, 80, 0.4), rgba(200, 80, 80, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(200, 80, 80, 0.4), rgba(200, 80, 80, 0.4) 90%, #333333);
 }
 .skill[data-skill="fletching"] {
-  background: linear-gradient(to bottom, rgba(159, 228, 102, 0.4), rgba(159, 228, 102, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(159, 228, 102, 0.4), rgba(159, 228, 102, 0.4) 90%, #333333);
 }
 .skill[data-skill="apothecary"] {
-  background: linear-gradient(to bottom, rgba(0, 180, 80, 0.4), rgba(0, 180, 80, 0.4) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(0, 180, 80, 0.4), rgba(0, 180, 80, 0.4) 90%, #333333);
 }
 .skill[data-skill="crafting"] {
-  background: linear-gradient(to bottom, rgba(155, 172, 204, 0.45), rgba(155, 172, 204, 0.45) 50%, #333333);
+  background: linear-gradient(to bottom, rgba(155, 172, 204, 0.45), rgba(155, 172, 204, 0.45) 90%, #333333);
 }
 .skill[data-skill="candlemaking"] {
   background: linear-gradient(to bottom, rgba(247, 159, 29, 0.45), rgba(247, 159, 29, 0.45) 50%, #333333);
@@ -1082,7 +1082,7 @@ span:not(.skill-icon):not(.skill-bubble-icon):not(.emoji) {
   /* Remove flex display that might cause extra visual elements */
   display: block;
   font-weight: bold;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  text-shadow: 1px 1px 1px #000000, -1px -1px 1px #000000, 1px -1px 1px #000000, -1px 1px 1px #000000 !important;
   
   /* Default transitions for smooth movement when not stationary */
   transition: left 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -1093,6 +1093,23 @@ span:not(.skill-icon):not(.skill-bubble-icon):not(.emoji) {
   /* Ensure no extra content or pseudo-elements */
   content: none;
   overflow: hidden;
+  
+  /* Remove circular border for sprite display */
+  border-radius: 0 !important;
+  border: none !important;
+  background-color: transparent !important; /* Force transparent background */
+  
+  /* Optimized pixel-perfect rendering for 32x32 sprites */
+  image-rendering: pixelated !important;
+  image-rendering: -moz-crisp-edges !important;
+  image-rendering: crisp-edges !important;
+  image-rendering: -webkit-optimize-contrast !important;
+  transform-origin: center center !important;
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  
+  /* Prevent sub-pixel rendering issues */
+  contain: layout style paint;
   
   /* Consistent z-index with other game elements */
   position: absolute;
@@ -1127,6 +1144,7 @@ span:not(.skill-icon):not(.skill-bubble-icon):not(.emoji) {
 .online-player:hover {
   transform: translateZ(0) !important; /* Maintain GPU acceleration, no scaling */
   animation: none !important;
+  background-color: transparent !important; /* Ensure no background appears on hover */
 }
 
 /* Direction indicators for online players - match main player exactly */
@@ -1501,3 +1519,350 @@ span:not(.skill-icon):not(.skill-bubble-icon):not(.emoji) {
   border-top: 3px solid #8b6f47;
   gap: 1px;
 }
+
+/* Skills navigation and pagination */
+.skills-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.skills-nav {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.skills-nav-btn {
+  padding: 8px 12px;
+  background: #4a4a4a;
+  border: 1px solid #666;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.skills-nav-btn:hover {
+  background: #5a5a5a;
+}
+
+.skills-nav-btn.active {
+  background: #ffd700;
+  color: #333;
+  border-color: #ffd700;
+}
+
+.skills-page {
+  display: none;
+  flex-grow: 1;
+}
+
+.skills-page.active {
+  display: block;
+}
+
+/* Additional skill background colors for new skills */
+/* Combat Skills - Extended */
+.skill[data-skill="strength"] { background: linear-gradient(to bottom, rgba(255, 100, 100, 0.4), rgba(255, 100, 100, 0.4) 90%, #333333); }
+.skill[data-skill="darkmagic"] { background: linear-gradient(to bottom, rgba(50, 0, 50, 0.5), rgba(50, 0, 50, 0.5) 90%, #333333); }
+.skill[data-skill="healing"] { background: linear-gradient(to bottom, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4) 90%, #333333); }
+.skill[data-skill="gunner"] { background: linear-gradient(to bottom, rgba(100, 100, 100, 0.5), rgba(100, 100, 100, 0.5) 90%, #333333); }
+.skill[data-skill="cardmaster"] { background: linear-gradient(to bottom, rgba(200, 50, 50, 0.4), rgba(200, 50, 50, 0.4) 90%, #333333); }
+.skill[data-skill="poisoning"] { background: linear-gradient(to bottom, rgba(100, 200, 100, 0.4), rgba(100, 200, 100, 0.4) 90%, #333333); }
+.skill[data-skill="rogue"] { background: linear-gradient(to bottom, rgba(30, 30, 30, 0.6), rgba(30, 30, 30, 0.6) 90%, #333333); }
+.skill[data-skill="sealing"] { background: linear-gradient(to bottom, rgba(80, 80, 150, 0.4), rgba(80, 80, 150, 0.4) 90%, #333333); }
+
+/* Creature/Spirit Skills */
+.skill[data-skill="summoning"] { background: linear-gradient(to bottom, rgba(120, 80, 200, 0.4), rgba(120, 80, 200, 0.4) 90%, #333333); }
+.skill[data-skill="tidecalling"] { background: linear-gradient(to bottom, rgba(0, 100, 200, 0.4), rgba(0, 100, 200, 0.4) 90%, #333333); }
+.skill[data-skill="necromancy"] { background: linear-gradient(to bottom, rgba(47, 79, 79, 0.5), rgba(47, 79, 79, 0.5) 90%, #333333); }
+.skill[data-skill="falconry"] { background: linear-gradient(to bottom, rgba(150, 100, 50, 0.4), rgba(150, 100, 50, 0.4) 90%, #333333); }
+.skill[data-skill="pacting"] { background: linear-gradient(to bottom, rgba(220, 20, 60, 0.5), rgba(220, 20, 60, 0.5) 90%, #333333); }
+
+/* Gathering Skills - Extended */
+.skill[data-skill="hunting"] { background: linear-gradient(to bottom, rgba(120, 80, 40, 0.5), rgba(120, 80, 40, 0.5) 90%, #333333); }
+.skill[data-skill="mycology"] { background: linear-gradient(to bottom, rgba(228, 114, 114, 0.4), rgba(228, 114, 114, 0.4) 90%, #333333); }
+.skill[data-skill="diving"] { background: linear-gradient(to bottom, rgba(0, 30, 200, 0.4), rgba(0, 30, 200, 0.4) 90%, #333333); }
+.skill[data-skill="prospecting"] { background: linear-gradient(to bottom, rgba(200, 150, 100, 0.4), rgba(200, 150, 100, 0.4) 90%, #333333); }
+
+/* Artisan Skills - Extended */
+.skill[data-skill="glassworking"] { background: linear-gradient(to bottom, rgba(150, 200, 255, 0.4), rgba(150, 200, 255, 0.4) 90%, #333333); }
+.skill[data-skill="toymaking"] { background: linear-gradient(to bottom, rgba(255, 150, 150, 0.4), rgba(255, 150, 150, 0.4) 90%, #333333); }
+.skill[data-skill="carpentry"] { background: linear-gradient(to bottom, rgba(139, 114, 30, 0.45), rgba(139, 114, 30, 0.45) 90%, #333333); }
+.skill[data-skill="butchery"] { background: linear-gradient(to bottom, rgba(150, 50, 50, 0.5), rgba(150, 50, 50, 0.5) 90%, #333333); }
+
+/* Magic/Mystical Skills */
+.skill[data-skill="enchanting"] { background: linear-gradient(to bottom, rgba(255, 150, 255, 0.4), rgba(255, 150, 255, 0.4) 90%, #333333); }
+.skill[data-skill="runecrafting"] { background: linear-gradient(to bottom, rgba(100, 50, 200, 0.4), rgba(100, 50, 200, 0.4) 90%, #333333); }
+.skill[data-skill="warding"] { background: linear-gradient(to bottom, rgba(200, 200, 100, 0.4), rgba(200, 200, 100, 0.4) 90%, #333333); }
+.skill[data-skill="astrology"] { background: linear-gradient(to bottom, rgba(50, 50, 150, 0.5), rgba(50, 50, 150, 0.5) 90%, #333333); }
+.skill[data-skill="dreaming"] { background: linear-gradient(to bottom, rgba(100, 100, 200, 0.4), rgba(100, 100, 200, 0.4) 90%, #333333); }
+.skill[data-skill="geomancy"] { background: linear-gradient(to bottom, rgba(150, 100, 50, 0.5), rgba(150, 100, 50, 0.5) 90%, #333333); }
+.skill[data-skill="windweaving"] { background: linear-gradient(to bottom, rgba(200, 255, 200, 0.4), rgba(200, 255, 200, 0.4) 90%, #333333); }
+.skill[data-skill="firemaking"] { background: linear-gradient(to bottom, rgba(255, 100, 0, 0.5), rgba(255, 100, 0, 0.5) 90%, #333333); }
+
+/* Support Skills - Extended */
+.skill[data-skill="sailing"] { background: linear-gradient(to bottom, rgba(0, 100, 150, 0.4), rgba(0, 100, 150, 0.4) 90%, #333333); }
+.skill[data-skill="golemancy"] { background: linear-gradient(to bottom, rgba(100, 100, 100, 0.5), rgba(100, 100, 100, 0.5) 90%, #333333); }
+.skill[data-skill="archaeology"] { background: linear-gradient(to bottom, rgba(150, 120, 80, 0.4), rgba(150, 120, 80, 0.4) 90%, #333333); }
+.skill[data-skill="trapping"] { background: linear-gradient(to bottom, rgba(255, 217, 0, 0.5), rgba(255, 217, 0, 0.5) 90%, #333333); }
+.skill[data-skill="dungeoneering"] { background: linear-gradient(to bottom, rgba(80, 80, 80, 0.5), rgba(80, 80, 80, 0.5) 90%, #333333); }
+.skill[data-skill="athletics"] { background: linear-gradient(to bottom, rgba(200, 150, 100, 0.4), rgba(200, 150, 100, 0.4) 90%, #333333); }
+.skill[data-skill="ruling"] { background: linear-gradient(to bottom, rgba(255, 230, 119, 0.5), rgba(255, 230, 119, 0.5) 90%, #333333); }
+
+/* Production/Trade Skills */
+.skill[data-skill="aquaculture"] { background: linear-gradient(to bottom, rgba(0, 150, 150, 0.4), rgba(0, 150, 150, 0.4) 90%, #333333); }
+.skill[data-skill="gardening"] { background: linear-gradient(to bottom, rgba(100, 200, 100, 0.4), rgba(100, 200, 100, 0.4) 90%, #333333); }
+.skill[data-skill="merchanting"] { background: linear-gradient(to bottom, rgba(255, 215, 0, 0.4), rgba(255, 215, 0, 0.4) 90%, #333333); }
+.skill[data-skill="barista"] { background: linear-gradient(to bottom, rgba(139, 69, 19, 0.5), rgba(139, 69, 19, 0.5) 90%, #333333); }
+
+/* Entertainment/Art Skills */
+.skill[data-skill="entertainment"] { background: linear-gradient(to bottom, rgba(255, 78, 78, 0.5), rgba(255, 78, 78, 0.5) 90%, #333333); }
+.skill[data-skill="barding"] { background: linear-gradient(to bottom, rgba(200, 150, 200, 0.4), rgba(200, 150, 200, 0.4) 90%, #333333); }
+.skill[data-skill="puppeteering"] { background: linear-gradient(to bottom, rgba(255, 200, 100, 0.4), rgba(255, 200, 100, 0.4) 90%, #333333); }
+.skill[data-skill="language"] { background: linear-gradient(to bottom, rgba(150, 150, 200, 0.4), rgba(150, 150, 200, 0.4) 90%, #333333); }
+
+/* Specialized Skills */
+.skill[data-skill="iceSculpting"] { background: linear-gradient(to bottom, rgba(200, 255, 255, 0.4), rgba(200, 255, 255, 0.4) 90%, #333333); }
+.skill[data-skill="gambling"] { background: linear-gradient(to bottom, rgba(200, 50, 200, 0.4), rgba(200, 50, 200, 0.4) 90%, #333333); }
+.skill[data-skill="occultism"] { background: linear-gradient(to bottom, rgba(75, 0, 130, 0.6), rgba(75, 0, 130, 0.6) 90%, #333333); }
+.skill[data-skill="riding"] { background: linear-gradient(to bottom, rgba(150, 100, 50, 0.4), rgba(150, 100, 50, 0.4) 90%, #333333); }
+.skill[data-skill="bestiary"] { background: linear-gradient(to bottom, rgba(100, 150, 100, 0.4), rgba(100, 150, 100, 0.4) 90%, #333333); }
+.skill[data-skill="maskMaking"] { background: linear-gradient(to bottom, rgba(200, 100, 100, 0.4), rgba(200, 100, 100, 0.4) 90%, #333333); }
+.skill[data-skill="bugCatching"] { background: linear-gradient(to bottom, rgba(150, 200, 150, 0.4), rgba(150, 200, 150, 0.4) 90%, #333333); }
+.skill[data-skill="exploration"] { background: linear-gradient(to bottom, rgba(100, 200, 200, 0.4), rgba(100, 200, 200, 0.4) 90%, #333333); }
+.skill[data-skill="shifting"] { background: linear-gradient(to bottom, rgba(255, 150, 0, 0.4), rgba(255, 150, 0, 0.4) 90%, #333333); }
+.skill[data-skill="druidism"] { background: linear-gradient(to bottom, rgba(50, 150, 50, 0.5), rgba(50, 150, 50, 0.5) 90%, #333333); }
+.skill[data-skill="mythology"] { background: linear-gradient(to bottom, rgba(255, 140, 0, 0.4), rgba(255, 140, 0, 0.4) 90%, #333333); }
+.skill[data-skill="artisan"] { background: linear-gradient(to bottom, rgba(150, 100, 200, 0.4), rgba(150, 100, 200, 0.4) 90%, #333333); }
+.skill[data-skill="agility"] { background: linear-gradient(to bottom, rgba(255, 255, 100, 0.4), rgba(255, 255, 100, 0.4) 90%, #333333); }
+.skill[data-skill="shellcraft"] { background: linear-gradient(to bottom, rgba(255, 200, 150, 0.4), rgba(255, 200, 150, 0.4) 90%, #333333); }
+.skill[data-skill="ghostHunting"] { background: linear-gradient(to bottom, rgba(200, 200, 200, 0.4), rgba(200, 200, 200, 0.4) 90%, #333333); }
+.skill[data-skill="spiritbinding"] { background: linear-gradient(to bottom, rgba(150, 150, 255, 0.4), rgba(150, 150, 255, 0.4) 90%, #333333); }
+.skill[data-skill="marauding"] { background: linear-gradient(to bottom, rgba(150, 50, 50, 0.5), rgba(150, 50, 50, 0.5) 90%, #333333); }
+.skill[data-skill="invention"] { background: linear-gradient(to bottom, rgba(255, 255, 200, 0.4), rgba(255, 255, 200, 0.4) 90%, #333333); }
+.skill[data-skill="snowcraft"] { background: linear-gradient(to bottom, rgba(240, 248, 255, 0.5), rgba(240, 248, 255, 0.5) 90%, #333333); }
+.skill[data-skill="marauding"] { background: linear-gradient(to bottom, rgba(139, 0, 0, 0.4), rgba(139, 0, 0, 0.4) 90%, #333333); }
+.skill[data-skill="dungeoneering"] { background: linear-gradient(to bottom, rgba(105, 105, 105, 0.4), rgba(105, 105, 105, 0.4) 90%, #333333); }
+.skill[data-skill="maskMaking"] { background: linear-gradient(to bottom, rgba(255, 140, 0, 0.4), rgba(255, 140, 0, 0.4) 90%, #333333); }
+.skill[data-skill="shellcraft"] { background: linear-gradient(to bottom, rgba(255, 182, 193, 0.4), rgba(255, 182, 193, 0.4) 90%, #333333); }
+.skill[data-skill="shifting"] { background: linear-gradient(to bottom, rgba(148, 0, 211, 0.4), rgba(148, 0, 211, 0.4) 90%, #333333); }
+.skill[data-skill="druidism"] { background: linear-gradient(to bottom, rgba(34, 139, 34, 0.4), rgba(34, 139, 34, 0.4) 90%, #333333); }
+
+/* All Skills Modal Styles */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 10000;
+  backdrop-filter: blur(5px);
+}
+
+.modal-overlay.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
+  border: 2px solid #ffd700;
+  border-radius: 15px;
+  max-width: 95vw;
+  max-height: 65vh;
+  width: 1560px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 2px solid #ffd700;
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  color: #000;
+  border-radius: 13px 13px 0 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.8em;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 2em;
+  color: #000;
+  cursor: pointer;
+  font-weight: bold;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.modal-close:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.modal-body {
+  padding: 25px;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.all-skills-mega-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+  gap: 12px;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.all-skills-mega-grid .skill {
+  width: 85px;
+  height: 85px;
+  padding: 8px 6px;
+  font-size: 11px;
+  margin: 0;
+  border: 1px solid #444;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.all-skills-mega-grid .skill:hover {
+  transform: scale(1.05);
+  box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+  border-color: #ffd700;
+}
+
+.all-skills-mega-grid .skill-name {
+  font-size: 9px;
+  line-height: 1.1;
+  height: 22px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.all-skills-mega-grid .skill-icon {
+  font-size: 16px;
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.8));
+}
+
+.all-skills-mega-grid .skill-level {
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.all-skills-mega-grid .skill-exp-bar {
+  height: 4px;
+  margin-top: 3px;
+}
+
+/* Responsive adjustments for modal */
+@media (max-width: 1600px) {
+  .modal-content {
+    width: 110vw;
+    max-height: 80vh;
+  }
+}
+
+@media (max-width: 1400px) {
+  .modal-content {
+    width: 120vw;
+    max-height: 95vh;
+  }
+  
+  .all-skills-mega-grid {
+    grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+    gap: 10px;
+  }
+  
+  .all-skills-mega-grid .skill {
+    width: 75px;
+    height: 75px;
+    padding: 6px 4px;
+  }
+  
+  .all-skills-mega-grid .skill-name {
+    font-size: 8px;
+    height: 20px;
+  }
+  
+  .all-skills-mega-grid .skill-icon {
+    font-size: 14px;
+  }
+  
+  .all-skills-mega-grid .skill-level {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 1068px) {
+  .modal-content {
+    max-height: 100vh;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.4em;
+  }
+  
+  .modal-body {
+    padding: 15px;
+  }
+  
+  .all-skills-mega-grid {
+    grid-template-columns: repeat(auto-fit, minmax(65px, 1fr));
+    gap: 8px;
+  }
+  
+  .all-skills-mega-grid .skill {
+    width: 65px;
+    height: 65px;
+    padding: 5px 3px;
+  }
+  
+  .all-skills-mega-grid .skill-name {
+    font-size: 7px;
+    height: 18px;
+  }
+  
+  .all-skills-mega-grid .skill-icon {
+    font-size: 12px;
+  }
+  
+  .all-skills-mega-grid .skill-level {
+    font-size: 10px;
+  }
+}
+
+/* New skills added */
+.skill[data-skill="stamina"] { background: linear-gradient(to bottom, rgba(255, 165, 0, 0.4), rgba(255, 165, 0, 0.4) 90%, #333333); }
+.skill[data-skill="lightmagic"] { background: linear-gradient(to bottom, rgba(255, 255, 220, 0.5), rgba(255, 255, 220, 0.5) 90%, #333333); }
+.skill[data-skill="leatherworking"] { background: linear-gradient(to bottom, rgba(139, 69, 19, 0.4), rgba(139, 69, 19, 0.4) 90%, #333333); }
+.skill[data-skill="crystallization"] { background: linear-gradient(to bottom, rgba(175, 238, 238, 0.4), rgba(175, 238, 238, 0.4) 90%, #333333); }
+.skill[data-skill="gravekeeping"] { background: linear-gradient(to bottom, rgba(105, 105, 105, 0.5), rgba(105, 105, 105, 0.5) 90%, #333333); }
+.skill[data-skill="scrapping"] { background: linear-gradient(to bottom, rgba(46, 139, 87, 0.4), rgba(46, 139, 87, 0.4) 90%, #333333); }
+.skill[data-skill="beekeeping"] { background: linear-gradient(to bottom, rgba(255, 215, 0, 0.4), rgba(255, 215, 0, 0.4) 90%, #333333); }
+.skill[data-skill="snowcraft"] { background: linear-gradient(to bottom, rgba(240, 248, 255, 0.5), rgba(240, 248, 255, 0.5) 90%, #333333); }

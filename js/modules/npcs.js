@@ -150,13 +150,18 @@ export function addNPC(npcInfo) {
   npcElements.set(id, npcElement);
   
   // Add hover effects
+  function applyNPCTransform(elem, hoverScale = 1) {
+    const flip = elem.dataset.facing === 'right' ? -1 : 1;
+    elem.style.transform = `scaleX(${flip}) scale(${hoverScale})`;
+  }
+
   npcElement.addEventListener('mouseenter', () => {
-    npcElement.style.transform = 'scale(1.1)';
+    applyNPCTransform(npcElement, 1.1);
     npcElement.style.filter = 'brightness(1.2)';
   });
-  
+
   npcElement.addEventListener('mouseleave', () => {
-    npcElement.style.transform = 'scale(1)';
+    applyNPCTransform(npcElement, 1);
     npcElement.style.filter = 'none';
   });
   
@@ -202,11 +207,28 @@ export function handleNPCMove(data) {
     return;
   }
   
-  // Store the current position before updating (for smooth animation)
-  const fromX = npc.x;
-  const fromY = npc.y;
-  
- // if (DEBUG_NPCS) console.log(`🎭 Moving NPC ${npc.name} from (${fromX}, ${fromY}) to (${position.x}, ${position.y})`);
+  // Determine current world position; if an animation is already in progress,
+  // compute the interpolated position so the new move starts from where the NPC
+  // visually is RIGHT NOW – this eliminates visible jitter caused by back-to-
+  // back movement packets.
+
+  let fromX = npc.x;
+  let fromY = npc.y;
+
+  if (npcElement.dataset.isMoving === 'true') {
+    const startTime = Number(npcElement.dataset.moveStartTime);
+    const duration  = Number(npcElement.dataset.moveDuration) || 500;
+    const sX = Number(npcElement.dataset.startX);
+    const sY = Number(npcElement.dataset.startY);
+    const eX = Number(npcElement.dataset.endX);
+    const eY = Number(npcElement.dataset.endY);
+
+    const progress = Math.min(1, (Date.now() - startTime) / duration);
+    if (!isNaN(progress)) {
+      fromX = sX + (eX - sX) * progress;
+      fromY = sY + (eY - sY) * progress;
+    }
+  }
   
   // Store direction for reference
   if (direction && npcElement) {
@@ -252,6 +274,35 @@ export function handleNPCResume(data) {
   
   // Remove idle animation
   npcElement.style.animation = '';
+}
+
+/**
+ * Handle NPC death from server
+ */
+export function handleNPCDeath(data) {
+  const { npcId } = data;
+  console.log(`💀 NPC ${npcId} is dying - starting death animation`);
+  
+  const npc = npcs.get(npcId);
+  const npcElement = npcElements.get(npcId);
+  
+  if (!npc || !npcElement) {
+    console.warn(`💀 NPC not found for death animation: ${npcId}`);
+    return;
+  }
+  
+  // Mark as dying to prevent interactions
+  npc.isDying = true;
+  
+  // Stop any movement animations
+  npcElement.style.transition = 'opacity 1.5s ease-out, transform 1.5s ease-out';
+  
+  // Start death animation - fade out and slightly shrink
+  npcElement.style.opacity = '0';
+  npcElement.style.transform = 'scale(0.8)';
+  npcElement.style.pointerEvents = 'none'; // Disable clicks during death
+  
+  console.log(`💀 Death animation started for NPC ${npcId}`);
 }
 
 /**
@@ -313,8 +364,15 @@ function animateNPCMovement(npcElement, fromX, fromY, toX, toY, direction) {
   // Debug: Log animation details
  // if (DEBUG_NPCS) console.log(`🎬 Animating NPC: delta(${deltaX}, ${deltaY}), direction: ${direction}`);
   
-  // Handle sprite flipping based on direction
-  updateNPCSprite(npcElement, direction);
+  // Handle sprite flipping based on direction. If direction lacks explicit left/right
+  // (e.g. 'up' or 'down'), derive facing from horizontal delta so NPC faces the
+  // player while moving.
+  let facingDirection = direction;
+  if (!facingDirection || (facingDirection === 'up' || facingDirection === 'down')) {
+    if (deltaX > 0) facingDirection = 'right';
+    else if (deltaX < 0) facingDirection = 'left';
+  }
+  updateNPCSprite(npcElement, facingDirection);
   
   // Duration of the move animation in ms
   const duration = 500;
@@ -333,11 +391,10 @@ function animateNPCMovement(npcElement, fromX, fromY, toX, toY, direction) {
   npcElement.style.left = `${fromScreenX}px`;
   npcElement.style.top = `${fromScreenY}px`;
 
-  // Ensure correct facing without additional translation – the per–frame updater
-  // in updateAllNPCPositions will handle the smooth interpolation.
+  // Maintain sprite orientation every frame
   const facing = npcElement.dataset.facing;
-  const scaleX = facing === 'right' ? -1 : 1;
-  npcElement.style.transform = `scaleX(${scaleX})`;
+  const flip = facing === 'right' ? -1 : 1;
+  npcElement.style.transform = `scaleX(${flip}) scale(1)`;
 }
 
 /**
@@ -346,24 +403,22 @@ function animateNPCMovement(npcElement, fromX, fromY, toX, toY, direction) {
 function updateNPCSprite(npcElement, direction) {
   if (!direction) return;
   
-  // Store the facing direction as a data attribute
-  // We'll apply the transform in CSS alongside the movement animation
-  switch (direction) {
-    case 'right':
-    case 'up-right':
-    case 'down-right':
-      npcElement.dataset.facing = 'right';
-      break;
-    case 'left':
-    case 'up-left':
-    case 'down-left':
-      npcElement.dataset.facing = 'left';
-      break;
-    case 'up':
-    case 'down':
-      // Keep current facing for vertical movement
-      break;
+  // Normalise direction string to lower-case for easier checks
+  const dir = direction.toLowerCase();
+  
+  // Determine facing – treat any *east* as right and *west* as left for consistency
+  if (dir.includes('right') || dir.includes('east')) {
+    npcElement.dataset.facing = 'right';
+  } else if (dir.includes('left') || dir.includes('west')) {
+    npcElement.dataset.facing = 'left';
+  } else {
+    // For purely vertical movement keep current facing (do nothing)
   }
+  
+  // Apply transform immediately so facing changes even before next camera update
+  const facing = npcElement.dataset.facing;
+  const flip = facing === 'right' ? -1 : 1;
+  npcElement.style.transform = `scaleX(${flip}) scale(1)`;
 }
 
 /**
@@ -446,10 +501,8 @@ export function updateAllNPCPositions() {
 
     // Maintain sprite orientation every frame
     const facing = npcElement.dataset.facing;
-    if (facing) {
-      const scaleX = facing === 'right' ? -1 : 1;
-      npcElement.style.transform = `scaleX(${scaleX})`;
-    }
+    const flip = facing === 'right' ? -1 : 1;
+    npcElement.style.transform = `scaleX(${flip}) scale(1)`;
   });
 }
 
@@ -467,7 +520,7 @@ function createHealthBar(health, maxHealth) {
     position: absolute;
     top: -8px;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translateX(-50%) scaleX(-1); /* negate parent flip */
     width: 30px;
     height: 4px;
     background-color: rgba(0,0,0,0.3);

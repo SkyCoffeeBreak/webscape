@@ -375,6 +375,17 @@ function handleWebSocketMessage(data) {
       }, 100); // Small delay to ensure modules are ready
       
       console.log('Authenticated with server');
+      
+      // Store initial HP values for combat module initialisation
+      if (typeof data.currentHP === 'number' && typeof data.maxHP === 'number') {
+        window.initialCurrentHP = data.currentHP;
+        window.initialMaxHP = data.maxHP;
+        if (window.combatModule?.updateLocalHPBar) {
+          window.combatModule.updateLocalHPBar(data.currentHP, data.maxHP);
+        } else if (window.uiModule?.updateHUDHPDisplay) {
+          window.uiModule.updateHUDHPDisplay(data.currentHP, data.maxHP);
+        }
+      }
       break;
       
     case 'auth-failed':
@@ -431,9 +442,7 @@ function handleWebSocketMessage(data) {
       break;
       
     case 'chat-message':
-      if (onChatMessage) {
-        onChatMessage(data.username, data.message, data.timestamp, 'multiplayer');
-      }
+      handleMultiplayerChat(data);
       break;
       
     case 'sync-inventory':
@@ -576,6 +585,18 @@ function handleWebSocketMessage(data) {
         window.npcModule.handleNPCResume(data);
       }
       break;
+    case 'npc-retreating':
+      console.log('🏃 NPC retreating:', data);
+      if (window.combatModule && window.combatModule.handleNPCRetreating) {
+        window.combatModule.handleNPCRetreating(data);
+      }
+      break;
+    case 'npc-death':
+      console.log('💀 NPC death:', data);
+      if (window.npcModule && window.npcModule.handleNPCDeath) {
+        window.npcModule.handleNPCDeath(data);
+      }
+      break;
     case 'npc-remove':
       console.log('🎭 NPC removed:', data);
       if (window.npcModule && window.npcModule.handleNPCRemove) {
@@ -604,20 +625,23 @@ function handleWebSocketMessage(data) {
       }
       break;
     case 'player-health-update':
-       if (data.username) {
-         if (data.username === getCurrentUser()?.username) {
-           // local
-           if (window.combatModule?.updateLocalHPBar) {
-             window.combatModule.updateLocalHPBar(data.currentHP, data.maxHP);
-           }
-         } else {
-           // other player
-           if (window.updateOnlinePlayerHP) {
-             window.updateOnlinePlayerHP(data.username, data.currentHP, data.maxHP);
-           }
-         }
-       }
-       break;
+      console.log('💉 Player health update packet:', data);
+      if (data.username) {
+        if (data.username === getCurrentUser()?.username) {
+          // local
+          if (window.combatModule?.updateLocalHPBar) {
+            window.combatModule.updateLocalHPBar(data.currentHP, data.maxHP);
+          } else if (window.uiModule?.updateHUDHPDisplay) {
+            window.uiModule.updateHUDHPDisplay(data.currentHP, data.maxHP);
+          }
+        } else {
+          // other player
+          if (window.updateOnlinePlayerHP) {
+            window.updateOnlinePlayerHP(data.username, data.currentHP, data.maxHP);
+          }
+        }
+      }
+      break;
     case 'player-respawn':
        if (data.username) {
          if (window.onPlayerRespawn) {
@@ -639,6 +663,36 @@ function handleWebSocketMessage(data) {
     case 'digging-holes-sync':
       console.log('🕳️ Received digging holes sync:', data);
       handleDiggingHolesSync(data);
+      break;
+      
+    case 'item-given':
+      if (window.inventoryModule) {
+        const { id, quantity, noted } = data.item;
+        if (noted) {
+          if (window.inventoryModule.addItemToInventory) {
+            window.inventoryModule.addItemToInventory(id, quantity, true);
+          }
+        } else {
+          if (window.inventoryModule.addItemToInventory) {
+            window.inventoryModule.addItemToInventory(id, quantity);
+          }
+        }
+        if (window.showNotification) {
+          window.showNotification(`🎁 You received ${quantity}x ${noted?'noted ':''}${id}!`, 'success');
+        }
+      }
+      break;
+      
+    case 'hitpoints-sync-ack':
+      if (DEBUG_MULTIPLAYER) console.log('🔄 HP sync acknowledged:', data);
+      break;
+      
+    case 'skills-sync':
+      console.log('📊 Received skills sync from server:', data);
+      // Update combat stats when skills are synced
+      if (window.combatModule?.updateCombatStats) {
+        window.combatModule.updateCombatStats();
+      }
       break;
       
     default:
@@ -744,7 +798,7 @@ function updatePlayerPosition(username, position, target, movementType) {
  */
 function handleMultiplayerChat(data) {
   if (onChatMessage) {
-    onChatMessage(data.username, data.message, data.timestamp, 'multiplayer');
+    onChatMessage(data.username, data.message, data.timestamp, data.isModerator ? 'mod' : 'multiplayer');
   }
 }
 
@@ -1075,6 +1129,11 @@ function handleInventorySync(data) {
       
       console.log('✅ Inventory synced from server');
       
+      // After syncing, ensure no invalid non-stackable stacks remain
+      if (window.inventoryModule.ensureInventoryIntegrity) {
+        window.inventoryModule.ensureInventoryIntegrity();
+      }
+      
       // Update the main inventory display
       if (window.inventoryModule.updateInventoryDisplay) {
         window.inventoryModule.updateInventoryDisplay();
@@ -1158,9 +1217,16 @@ function handlePlayerResourceDepleted(data) {
   if (resourceElement) {
     // Update depleted state based on resource type
     if (resourceType.startsWith('ore_')) {
-      resourceElement.textContent = '🪨';
-      resourceElement.title = 'Depleted ore (respawning...)';
-      resourceElement.dataset.depleted = 'true';
+      if (resourceType === 'ore_gold') {
+        // Gold ore uses 3D model, let the world module handle it
+        if (window.worldModule && window.worldModule.forceWorldRerender) {
+          window.worldModule.forceWorldRerender();
+        }
+      } else {
+        resourceElement.textContent = '🪨';
+        resourceElement.title = 'Depleted ore (respawning...)';
+        resourceElement.dataset.depleted = 'true';
+      }
       
       // Update global depleted ore states if available
       if (window.depletedOreStates) {
@@ -1415,6 +1481,7 @@ function showPlayerActionBubble(playerElement, skillName, customText, customIcon
   bubbleContainer.style.position = 'absolute';
   bubbleContainer.style.zIndex = '16'; // Higher than speech bubbles (15)
   bubbleContainer.style.pointerEvents = 'none';
+  bubbleContainer.style.transition = 'left 0.08s linear, top 0.08s linear, transform 0.08s linear';
   
   // Create bubble
   const bubble = document.createElement('div');
@@ -1470,7 +1537,8 @@ function showPlayerActionBubble(playerElement, skillName, customText, customIcon
   bubble.appendChild(tail);
   bubbleContainer.appendChild(bubble);
   
-  // Add to game world (not directly to player element)
+  // Add to game world with transition disabled for first frame
+  bubbleContainer.style.transition = 'none';
   gameWorld.appendChild(bubbleContainer);
   
   // Function to update bubble position relative to player (same logic as speech bubbles)
@@ -1480,43 +1548,53 @@ function showPlayerActionBubble(playerElement, skillName, customText, customIcon
     }
     
     /*
-     * Use the DOM bounding rectangles instead of raw inline styles.  Inline
-     * left/top may not be set yet when the first position update fires – and
-     * remote players rely on smooth transforms that don't always touch those
-     * properties.  Measuring the real on-screen box avoids NaN / 0 fallbacks
-     * that were pushing bubbles to the top-left corner (making them appear to
-     * "not render").
+     * Use stable calculated positions instead of getBoundingClientRect when available
+     * This prevents jitter during smooth movement animations where bounding rects
+     * may not accurately reflect the visual position
      */
-
-    const playerRect = playerElement.getBoundingClientRect();
-    const worldRect  = gameWorld.getBoundingClientRect();
-
-    // Screen-space centre of the player converted to game-world relative coords
-    const bubbleX = (playerRect.left - worldRect.left) + (playerRect.width / 2);
-    const bubbleHeight = bubbleContainer.offsetHeight || 40;
-    const bubbleY = (playerRect.top - worldRect.top) - bubbleHeight - 15; // 15 px gap above
-
-    bubbleContainer.style.left = `${bubbleX}px`;
-    bubbleContainer.style.top  = `${bubbleY}px`;
-    bubbleContainer.style.transform = 'translateX(-50%)';
-  }
-  
-  // Initial position
-  updateBubblePosition();
-  
-  // Also update position after a small delay to account for bubble rendering
-  setTimeout(() => {
-    updateBubblePosition();
-  }, 50);
-  
-  // Update position continuously while bubble exists (same as speech bubbles)
-  const updateInterval = setInterval(() => {
-    if (!bubbleContainer.parentNode) {
-      clearInterval(updateInterval);
-      return;
+    
+    let bubbleX, bubbleY;
+    
+    // Try to use pre-calculated stable position first (set by updateOnlinePlayerPosition)
+    if (playerElement.dataset.calculatedX && playerElement.dataset.calculatedY) {
+      const playerLeft = parseInt(playerElement.dataset.calculatedX);
+      const playerTop = parseInt(playerElement.dataset.calculatedY);
+      const playerWidth = playerElement.offsetWidth || (window.worldModule?.getGridSize() || 32);
+      
+      // Get bubble dimensions to position it properly
+      const bubbleHeight = bubbleContainer.offsetHeight || 40; // Default height if not measured yet
+      
+      // Position bubble above player center
+      bubbleX = playerLeft + (playerWidth / 2);
+      bubbleY = playerTop - bubbleHeight - 15; // 15px gap above player
+    } else {
+      // Fallback to bounding rect method
+      const playerRect = playerElement.getBoundingClientRect();
+      const gameWorldRect = document.querySelector('.game-world').getBoundingClientRect();
+      
+      // Position relative to game world
+      bubbleX = playerRect.left + playerRect.width / 2 - gameWorldRect.left;
+      bubbleY = playerRect.top - 15 - gameWorldRect.top; // 15px gap above
     }
+    
+    // Only update if position changed significantly to reduce jitter
+    const currentLeft = parseInt(bubbleContainer.style.left) || 0;
+    const currentTop = parseInt(bubbleContainer.style.top) || 0;
+    const threshold = 2; // Pixel threshold for updates
+    
+    if (Math.abs(currentLeft - bubbleX) > threshold || Math.abs(currentTop - bubbleY) > threshold) {
+      bubbleContainer.style.left = `${bubbleX}px`;
+      bubbleContainer.style.top = `${bubbleY}px`;
+    }
+  }
+
+  // Update position initially
+  updateBubblePosition();
+
+  // Update position periodically, but less frequently to reduce jitter
+  let updateInterval = setInterval(() => {
     updateBubblePosition();
-  }, 16); // Update every 16ms (60 FPS) for ultra-smooth following
+  }, 50); // Reduced from every frame to every 50ms for stability
   
   // Store the update interval so we can clean it up when hiding the bubble
   bubbleContainer._updateInterval = updateInterval;

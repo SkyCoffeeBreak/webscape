@@ -50,15 +50,18 @@ const defaultUserProfile = {
   // Inventory and equipment
   inventory: [],
   equipment: {
-    head: null,
-    body: null,
-    legs: null,
-    feet: null,
-    hands: null,
+    helmet: null,
+    amulet: null,
+    arrows: null,
     weapon: null,
+    body: null,
     shield: null,
-    neck: null,
-    ring: null
+    legs: null,
+    gloves: null,
+    boots: null,
+    cape: null,
+    ring: null,
+    ring2: null
   },
   
   // Bank storage
@@ -70,6 +73,9 @@ const defaultUserProfile = {
     y: 50,
     mapLevel: 'surface' // Track which map level player is on
   },
+  
+  // Player form (for Shifting skill)
+  playerForm: 'human',
   
   // Game settings
   settings: {
@@ -204,6 +210,284 @@ function getSavedPlayerPosition(profile) {
   return { x: 50, y: 50, mapLevel: 'surface' };
 }
 
+// Player form management - linked to Shifting skill
+let playerForm = 'human'; // Default form (changed from slime)
+
+// Form definitions - each form can have different sprites and properties
+const playerForms = {
+  human: {
+    name: 'Human',
+    idle: 'images/player/human_idle.gif',
+    walk: 'images/player/human_walk.gif',
+    icon: '🧑',
+    description: 'The default human form',
+    unlocked: true // Always available
+  },
+  slime: {
+    name: 'Slime',
+    sprite: 'images/player/slime.png',
+    icon: '🟢',
+    description: 'A simple but friendly slime form',
+    unlocked: true // Always available
+  }
+  // More forms can be added based on Shifting skill level
+};
+
+// Get current player form
+function getPlayerForm() {
+  return playerForm;
+}
+
+// Set player form (unlocks based on Shifting skill)
+function setPlayerForm(form) {
+  if (playerForms[form] && playerForms[form].unlocked) {
+    playerForm = form;
+    
+    // Update player sprite in the world
+    updatePlayerSprite();
+    
+    // Save form to user profile if available
+    if (typeof window !== 'undefined') {
+      // Update in current profile if it exists
+      if (window.currentUserProfile) {
+        savePlayerForm(window.currentUserProfile, form);
+      }
+      
+      // Trigger save game if available
+      if (window.saveGame) {
+        window.saveGame();
+      }
+    }
+    
+    console.log(`Player form changed to: ${form}`);
+    return true;
+  }
+  return false;
+}
+
+// Update player sprite appearance
+function updatePlayerSprite(isMoving = false) {
+  console.log('🎭 updatePlayerSprite called, isMoving:', isMoving);
+  const player = document.getElementById('player-character');
+  if (!player) {
+    console.log('🎭 No player element found');
+    return;
+  }
+  
+  const form = playerForms[playerForm];
+  if (!form) {
+    console.log('🎭 No form data found for:', playerForm);
+    return;
+  }
+  
+  // Cache current sprite to prevent unnecessary changes that cause flickering
+  const currentSprite = player.style.backgroundImage;
+  
+  // Determine which sprite to use
+  let spriteUrl;
+  if (form.idle && form.walk) {
+    // Form has animation support
+    spriteUrl = isMoving ? form.walk : form.idle;
+    console.log('🎭 Using animated sprite:', spriteUrl, 'for form:', playerForm);
+  } else {
+    // Form uses single sprite
+    spriteUrl = form.sprite;
+    console.log('🎭 Using static sprite:', spriteUrl, 'for form:', playerForm);
+  }
+  
+  // Only update sprite if it actually changed (prevents flickering)
+  const newSpriteStyle = `url('${spriteUrl}')`;
+  if (currentSprite !== newSpriteStyle) {
+    // Defer sprite update to next frame to prevent racing with movement state changes
+    requestAnimationFrame(() => {
+      // Double-check player element still exists
+      if (!document.getElementById('player-character')) return;
+      
+      // Get current grid size for pixel-perfect scaling
+      const gridSize = window.worldModule?.getGridSize ? window.worldModule.getGridSize() : 32;
+      const pixelRatio = calculatePixelPerfectRatio(gridSize, 32); // 32 is base sprite size
+      
+      // Set background image instead of color - optimized for pixel-perfect rendering
+      player.style.backgroundColor = 'transparent';
+      player.style.backgroundImage = newSpriteStyle;
+      
+      // Use pixel-perfect scaling instead of percentage
+      const scaledSize = `${32 * pixelRatio}px`;
+      player.style.backgroundSize = `${scaledSize} ${scaledSize}`;
+      player.style.backgroundRepeat = 'no-repeat';
+      player.style.backgroundPosition = 'center';
+      
+      // Remove circular border for sprites
+      player.style.borderRadius = '0';
+      
+      console.log('🎭 Player sprite updated with pixel-perfect scaling:', {
+        gridSize,
+        pixelRatio,
+        scaledSize,
+        backgroundImage: newSpriteStyle
+      });
+    });
+  }
+  
+  // Store current facing direction for sprite flipping
+  if (!player.dataset.facing) {
+    player.dataset.facing = 'right'; // Default facing right
+  }
+  
+  // Apply initial facing direction (only if not currently set to prevent conflicts)
+  if (!player.dataset.facingApplied || player.dataset.facingApplied !== player.dataset.facing) {
+    applyPlayerFacing(player.dataset.facing);
+  }
+}
+
+// Calculate pixel-perfect scaling ratio for sprites
+function calculatePixelPerfectRatio(targetSize, spriteSize) {
+  // Calculate the closest integer ratio that doesn't exceed target size
+  const exactRatio = targetSize / spriteSize;
+  const pixelRatio = Math.max(1, Math.floor(exactRatio));
+  
+  console.log(`🎯 Pixel ratio calculation: target=${targetSize}px, sprite=${spriteSize}px, exact=${exactRatio.toFixed(2)}, pixel-perfect=${pixelRatio}x`);
+  
+  return pixelRatio;
+}
+
+// Apply facing direction to player sprite
+function applyPlayerFacing(direction) {
+  const player = document.getElementById('player-character');
+  if (!player) return;
+  
+  // Store facing direction
+  player.dataset.facing = direction;
+  player.dataset.facingApplied = direction;
+  
+  // Determine if sprite should be flipped based on direction
+  let scaleX = 1; // Default (facing right)
+  
+  if (direction === 'west' || direction === 'northwest' || direction === 'southwest') {
+    scaleX = -1; // Flip for left-facing
+  }
+  
+  // Apply transform with direction offset and flip
+  let transform = `scaleX(${scaleX})`;
+  
+  // Add slight movement offset for direction indication (like original system)
+  // Reduced offset to minimize flicker
+  switch (direction) {
+    case 'north':
+      transform += ' translateY(-1px)';
+      break;
+    case 'northeast':
+      transform += ' translate(1px, -1px)';
+      break;
+    case 'east':
+      transform += ' translateX(1px)';
+      break;
+    case 'southeast':
+      transform += ' translate(1px, 1px)';
+      break;
+    case 'south':
+      transform += ' translateY(1px)';
+      break;
+    case 'southwest':
+      transform += ' translate(-1px, 1px)';
+      break;
+    case 'west':
+      transform += ' translateX(-1px)';
+      break;
+    case 'northwest':
+      transform += ' translate(-1px, -1px)';
+      break;
+  }
+  
+  // Only apply transform if it's different from current to prevent flicker
+  if (player.style.transform !== transform) {
+    player.style.transform = transform;
+  }
+}
+
+// Set player movement state (triggers animation change)
+function setPlayerMoving(isMoving) {
+  const player = document.getElementById('player-character');
+  if (!player) return;
+  
+  // Only update if movement state actually changed to prevent unnecessary sprite updates
+  const currentMovingState = player.dataset.isMoving === 'true';
+  if (currentMovingState === isMoving) {
+    return; // No change needed
+  }
+  
+  // Store movement state
+  player.dataset.isMoving = isMoving.toString();
+  
+  // Delay sprite update slightly to prevent racing with movement initiation
+  setTimeout(() => {
+    // Update sprite based on movement state
+    updatePlayerSprite(isMoving);
+    console.log(`🎭 Player movement state: ${isMoving ? 'moving' : 'idle'}`);
+  }, 10); // Small delay to prevent racing with movement state changes
+}
+
+// Get available forms based on Shifting skill level
+function getAvailableForms() {
+  return Object.keys(playerForms).filter(form => playerForms[form].unlocked);
+}
+
+// Unlock new forms based on Shifting skill progression
+function checkFormUnlocks() {
+  // Get shifting level from skills module if available
+  let shiftingLevel = 1;
+  if (typeof window !== 'undefined' && window.skillsModule && window.skillsModule.getSkillLevel) {
+    shiftingLevel = window.skillsModule.getSkillLevel('shifting');
+  }
+  
+  // Add more forms as shifting level increases
+  // Example: if (shiftingLevel >= 10) playerForms.wolf.unlocked = true;
+}
+
+// Save player form to profile
+function savePlayerForm(profile, form) {
+  profile.playerForm = form;
+  return profile;
+}
+
+// Load player form from profile
+function loadPlayerForm(profile) {
+  if (profile.playerForm && playerForms[profile.playerForm]) {
+    playerForm = profile.playerForm;
+    // Update sprite if player element exists
+    setTimeout(() => {
+      updatePlayerSprite();
+    }, 100);
+  }
+  return playerForm;
+}
+
+// Also add to window for compatibility with existing modules
+if (typeof window !== 'undefined') {
+  window.userModule = {
+    defaultUserProfile,
+    createNewProfile,
+    calculateCombatLevel,
+    updatePlaytime,
+    updateLoginTimestamp,
+    saveMapLevel,
+    getSavedMapLevel,
+    savePlayerPosition,
+    getSavedPlayerPosition,
+    getPlayerForm,
+    setPlayerForm,
+    updatePlayerSprite,
+    applyPlayerFacing,
+    setPlayerMoving,
+    getAvailableForms,
+    checkFormUnlocks,
+    playerForms,
+    savePlayerForm,
+    loadPlayerForm,
+    calculatePixelPerfectRatio
+  };
+}
+
 // Export all functions and data
 export {
   defaultUserProfile,
@@ -214,5 +498,16 @@ export {
   saveMapLevel,
   getSavedMapLevel,
   savePlayerPosition,
-  getSavedPlayerPosition
+  getSavedPlayerPosition,
+  getPlayerForm,
+  setPlayerForm,
+  updatePlayerSprite,
+  applyPlayerFacing,
+  setPlayerMoving,
+  getAvailableForms,
+  checkFormUnlocks,
+  playerForms,
+  savePlayerForm,
+  loadPlayerForm,
+  calculatePixelPerfectRatio
 }; 

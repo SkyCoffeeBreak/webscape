@@ -91,19 +91,23 @@ function sendMessage() {
   if (message) {
     console.log('Sending message:', message);
     
-    // Check if this is a command
+    // Handle slash commands
     if (message.startsWith('/')) {
-      const result = processChatCommand(message);
-      
-      if (result) {
-        // Command was processed
-        const messageType = result.success ? MESSAGE_TYPES.SUCCESS : MESSAGE_TYPES.ERROR;
-        addMessage(result.message, messageType);
+      if (window.isUserOnline && window.isUserOnline()) {
+        // Forward command to server for authoritative processing
+        if (window.sendChatMessage) {
+          window.sendChatMessage(message);
+        }
       } else {
-        // Unknown command
-        addMessage(`Unknown command: ${message}. Type /help for available commands.`, MESSAGE_TYPES.ERROR);
+        // Offline – process locally
+        const result = processChatCommand(message);
+        if (result) {
+          const messageType = result.success ? MESSAGE_TYPES.SUCCESS : MESSAGE_TYPES.ERROR;
+          addMessage(result.message, messageType);
+        } else {
+          addMessage(`Unknown command: ${message}. Type /help for available commands.`, MESSAGE_TYPES.ERROR);
+        }
       }
-      
       input.value = '';
       return;
     }
@@ -821,7 +825,9 @@ function sendEmoteMessage(emote) {
       }
       
       const playerCharacter = document.getElementById('player-character');
-      if (playerCharacter && playerCharacter.style.backgroundColor) {
+      if (playerCharacter && playerCharacter.dataset.playerColor) {
+        playerColor = playerCharacter.dataset.playerColor;
+      } else if (playerCharacter && playerCharacter.style.backgroundColor && playerCharacter.style.backgroundColor !== 'transparent') {
         playerColor = playerCharacter.style.backgroundColor;
       }
       

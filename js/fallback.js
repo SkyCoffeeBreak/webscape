@@ -86,15 +86,42 @@ function switchTab(tabName) {
 
 // Basic skill data
 const skills = {
-  attack: 1, magic: 1, ranged: 1, blasting: 1,
-  defence: 1, hitpoints: 10, prayer: 1, slayer: 1,
-  mining: 1, fishing: 1, woodcutting: 1, harvesting: 1,
-  smithing: 1, cooking: 1, fletching: 1, apothecary: 1,
-  crafting: 1, bonecarving: 1, painting: 1, brewing: 1,
-  scribing: 1, confectionery: 1, masonry: 1, tailoring: 1,
-  thieving: 1, alchemy: 1, creation: 1, delivery: 1,
-  ranching: 1, knowledge: 1, candlemaking: 1, pottery: 1,
-  digging: 1, diplomacy: 1, apiary: 1, taming: 1, dracology: 1, engineering: 1
+  // Combat Skills
+  attack: 1, strength: 1, magic: 1, darkmagic: 1, healing: 1,
+  ranged: 1, gunner: 1, blasting: 1, cardmaster: 1, poisoning: 1,
+  rogue: 1, defence: 1, hitpoints: 10, prayer: 1, sealing: 1, slayer: 1,
+  marauding: 1, dungeoneering: 1,
+  
+  // Gathering Skills  
+  mining: 1, fishing: 1, harvesting: 1, woodcutting: 1, hunting: 1,
+  mycology: 1, diving: 1, prospecting: 1, digging: 1, archaeology: 1,
+  trapping: 1, bugCatching: 1, ghostHunting: 1,
+  
+  // Artisan Skills
+  smithing: 1, crafting: 1, engineering: 1, cooking: 1, confectionery: 1,
+  fletching: 1, scribing: 1, apothecary: 1, brewing: 1, painting: 1,
+  pottery: 1, masonry: 1, bonecarving: 1, tailoring: 1, candlemaking: 1,
+  glassworking: 1, toymaking: 1, carpentry: 1, butchery: 1, maskMaking: 1,
+  shellcraft: 1, invention: 1,
+  
+  // Magic/Mystical Skills
+  creation: 1, enchanting: 1, runecrafting: 1, alchemy: 1, warding: 1,
+  astrology: 1, dreaming: 1, geomancy: 1, windweaving: 1, spiritbinding: 1,
+  shifting: 1, druidism: 1,
+  
+  // Support Skills
+  thieving: 1, delivery: 1, knowledge: 1, diplomacy: 1, sailing: 1,
+  athletics: 1, ruling: 1, ranching: 1, apiary: 1, aquaculture: 1,
+  gardening: 1, merchanting: 1, barista: 1, firemaking: 1, bestiary: 1,
+  
+  // Companion Skills
+  taming: 1, summoning: 1, tidecalling: 1, necromancy: 1, falconry: 1,
+  pacting: 1, dracology: 1, golemancy: 1, puppeteering: 1,
+  
+  // Miscellaneous Skills
+  entertainment: 1, barding: 1, language: 1, iceSculpting: 1, gambling: 1,
+  occultism: 1, riding: 1, exploration: 1, mythology: 1, artisan: 1,
+  agility: 1, snowcraft: 1
 };
 
 function initializeSkills() {
@@ -717,7 +744,7 @@ function renderViewport(worldElement) {
         // Render floor items at this position
         const itemsAtPosition = getFloorItemsAt(worldX, worldY);
         itemsAtPosition.forEach(floorItem => {
-          const itemDef = itemDefinitions[floorItem.item.id];
+          const itemDef = fallbackItemDefinitions[floorItem.item.id];
           if (itemDef) {
             // Create floor item element
             const itemElement = document.createElement('div');
@@ -1240,32 +1267,37 @@ function updatePlayerAppearance(playerElement, direction) {
   // Add appropriate direction class
   playerElement.classList.add(`facing-${direction}`);
   
-  // Visual indication of direction
-  switch (direction) {
-    case 'north':
-      playerElement.style.transform = 'translateY(-2px)';
-      break;
-    case 'northeast':
-      playerElement.style.transform = 'translate(2px, -2px)';
-      break;
-    case 'east':
-      playerElement.style.transform = 'translateX(2px)';
-      break;
-    case 'southeast':
-      playerElement.style.transform = 'translate(2px, 2px)';
-      break;
-    case 'south':
-      playerElement.style.transform = 'translateY(2px)';
-      break;
-    case 'southwest':
-      playerElement.style.transform = 'translate(-2px, 2px)';
-      break;
-    case 'west':
-      playerElement.style.transform = 'translateX(-2px)';
-      break;
-    case 'northwest':
-      playerElement.style.transform = 'translate(-2px, -2px)';
-      break;
+  // Use the new player form system if available
+  if (window.userModule && window.userModule.applyPlayerFacing) {
+    window.userModule.applyPlayerFacing(direction);
+  } else {
+    // Fallback to original transform system
+    switch (direction) {
+      case 'north':
+        playerElement.style.transform = 'translateY(-2px)';
+        break;
+      case 'northeast':
+        playerElement.style.transform = 'translate(2px, -2px)';
+        break;
+      case 'east':
+        playerElement.style.transform = 'translateX(2px)';
+        break;
+      case 'southeast':
+        playerElement.style.transform = 'translate(2px, 2px)';
+        break;
+      case 'south':
+        playerElement.style.transform = 'translateY(2px)';
+        break;
+      case 'southwest':
+        playerElement.style.transform = 'translate(-2px, 2px)';
+        break;
+      case 'west':
+        playerElement.style.transform = 'translateX(-2px)';
+        break;
+      case 'northwest':
+        playerElement.style.transform = 'translate(-2px, -2px)';
+        break;
+    }
   }
 }
 
@@ -1404,8 +1436,8 @@ let dragState = {
 // Item spawning timer
 let itemSpawnTimer = null;
 
-// Item definitions
-const itemDefinitions = {
+// Fallback item definitions (local to fallback script)
+const fallbackItemDefinitions = {
   coins: {
     id: 'coins',
     name: 'Coins',
@@ -1701,10 +1733,7 @@ function createInventoryUI() {
         <div class="inventory-count">
           Items: <span id="inventory-count">0</span>/${INVENTORY_SIZE}
         </div>
-        <div class="test-buttons">
-          <button id="spawn-item-btn" style="padding: 5px 10px; background: #4a7c59; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 5px;">Spawn Item</button>
-          <button id="add-item-btn" style="padding: 5px 10px; background: #7c4a59; color: white; border: none; border-radius: 3px; cursor: pointer;">Add to Inventory</button>
-        </div>
+        <!-- Test buttons removed -->
       </div>
     </div>
     
@@ -1739,8 +1768,8 @@ function addInventoryStyles() {
     
     .inventory-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      grid-template-rows: repeat(7, 1fr);
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(8, 1fr);
       gap: 1px;
       background-color: #2a2a2a;
       padding: 3px;
@@ -2096,7 +2125,7 @@ function showContextMenu(event, slotIndex) {
   if (!contextMenu) return;
   
   const item = playerInventory[slotIndex];
-  const itemDef = item ? itemDefinitions[item.id] : null;
+  const itemDef = item ? fallbackItemDefinitions[item.id] : null;
   
   // Show/hide consume option based on item type
   if (consumeOption && itemDef) {
@@ -2146,7 +2175,7 @@ function useItem(slotIndex) {
   const item = playerInventory[slotIndex];
   if (!item) return;
   
-  const itemDef = itemDefinitions[item.id];
+  const itemDef = fallbackItemDefinitions[item.id];
   if (!itemDef) return;
   
   let message = `You use the ${itemDef.name}.`;
@@ -2187,12 +2216,12 @@ function dropItem(slotIndex) {
   
   // Check if there are existing items at this location
   const existingItems = getFloorItemsAt(dropX, dropY);
-  const itemDef = itemDefinitions[item.id];
+  const itemDef = fallbackItemDefinitions[item.id];
   
   // If the item is stackable, check for existing stackable items of the same type
   if (itemDef && itemDef.stackable) {
     const existingStackableItem = existingItems.find(floorItem => 
-      floorItem.item.id === item.id && itemDefinitions[floorItem.item.id].stackable
+      floorItem.item.id === item.id && fallbackItemDefinitions[floorItem.item.id].stackable
     );
     
     if (existingStackableItem) {
@@ -2229,7 +2258,7 @@ function examineItem(slotIndex) {
   const item = playerInventory[slotIndex];
   if (!item) return;
   
-  const itemDef = itemDefinitions[item.id];
+  const itemDef = fallbackItemDefinitions[item.id];
   if (!itemDef) return;
   
   showNotification(`${itemDef.name}: ${itemDef.description}`);
@@ -2239,7 +2268,7 @@ function examineItem(slotIndex) {
 function showTooltip(event, item) {
   hideTooltip(); // Remove any existing tooltip
   
-  const itemDef = itemDefinitions[item.id];
+  const itemDef = fallbackItemDefinitions[item.id];
   if (!itemDef) return;
   
   const tooltip = document.createElement('div');
@@ -2266,7 +2295,7 @@ function hideTooltip() {
 
 // Add item to inventory
 function addItemToInventory(itemId, quantity = 1) {
-  const itemDef = itemDefinitions[itemId];
+  const itemDef = fallbackItemDefinitions[itemId];
   if (!itemDef) return false;
   
   // Check if item is stackable and already exists
@@ -2303,7 +2332,7 @@ function removeItemFromInventory(slotIndex) {
   const item = playerInventory[slotIndex];
   if (!item) return;
   
-  const itemDef = itemDefinitions[item.id];
+  const itemDef = fallbackItemDefinitions[item.id];
   
   if (itemDef && itemDef.stackable && item.quantity > 1) {
     item.quantity--;
@@ -2327,7 +2356,7 @@ function updateInventoryDisplay() {
     const item = playerInventory[index];
     
     if (item) {
-      const itemDef = itemDefinitions[item.id];
+      const itemDef = fallbackItemDefinitions[item.id];
       if (itemDef) {
         slot.classList.add('occupied');
         const tintStyle = itemDef.colorTint ? `color: ${itemDef.colorTint};` : '';
@@ -2406,7 +2435,7 @@ function spawnRandomItem() {
   
   // Determine quantity for stackable items
   let quantity = 1;
-  const itemDef = itemDefinitions[itemId];
+  const itemDef = fallbackItemDefinitions[itemId];
   if (itemDef && itemDef.stackable && itemId === 'coins') {
     quantity = Math.floor(Math.random() * 50) + 1; // 1-50 coins
   }
@@ -2417,13 +2446,13 @@ function spawnRandomItem() {
 
 // Get random item ID based on rarity
 function getRandomItemId() {
-  const items = Object.keys(itemDefinitions);
-  const totalWeight = items.reduce((sum, id) => sum + itemDefinitions[id].rarity, 0);
+  const items = Object.keys(fallbackItemDefinitions);
+  const totalWeight = items.reduce((sum, id) => sum + fallbackItemDefinitions[id].rarity, 0);
   
   let random = Math.random() * totalWeight;
   
   for (const itemId of items) {
-    random -= itemDefinitions[itemId].rarity;
+    random -= fallbackItemDefinitions[itemId].rarity;
     if (random <= 0) {
       return itemId;
     }
@@ -2434,7 +2463,7 @@ function getRandomItemId() {
 
 // Create floor item
 function createFloorItem(item, x, y) {
-  const itemDef = itemDefinitions[item.id];
+  const itemDef = fallbackItemDefinitions[item.id];
   if (!itemDef) return;
   
   // Check if there are existing items at this location
@@ -2443,7 +2472,7 @@ function createFloorItem(item, x, y) {
   // If the item is stackable, check for existing stackable items of the same type
   if (itemDef.stackable) {
     const existingStackableItem = existingItems.find(floorItem => 
-      floorItem.item.id === item.id && itemDefinitions[floorItem.item.id].stackable
+      floorItem.item.id === item.id && fallbackItemDefinitions[floorItem.item.id].stackable
     );
     
     if (existingStackableItem) {
@@ -2509,7 +2538,7 @@ function pickupFloorItem(floorItemId) {
   
   console.log('PICKUP: Found floor item:', floorItem);
   
-  const itemDef = itemDefinitions[floorItem.item.id];
+  const itemDef = fallbackItemDefinitions[floorItem.item.id];
   if (!itemDef) {
     console.error('PICKUP ERROR: No item definition found for:', floorItem.item.id);
     return;
@@ -2607,7 +2636,7 @@ function spawnItemNearPlayer() {
       
       // Determine quantity for stackable items
       let quantity = 1;
-      const itemDef = itemDefinitions[itemId];
+      const itemDef = fallbackItemDefinitions[itemId];
       if (itemDef && itemDef.stackable && itemId === 'coins') {
         quantity = Math.floor(Math.random() * 20) + 5; // 5-25 coins for testing
       }
@@ -2639,7 +2668,7 @@ function addRandomItemToInventory() {
   
   // Determine quantity for stackable items
   let quantity = 1;
-  const itemDef = itemDefinitions[itemId];
+  const itemDef = fallbackItemDefinitions[itemId];
   if (itemDef && itemDef.stackable && itemId === 'coins') {
     quantity = Math.floor(Math.random() * 50) + 10; // 10-60 coins for testing
   }
@@ -2746,7 +2775,7 @@ function showFloorItemContextMenu(event, worldX, worldY) {
   
   // Create menu items for each floor item
   itemsAtPosition.forEach((floorItem, index) => {
-    const itemDef = itemDefinitions[floorItem.item.id];
+    const itemDef = fallbackItemDefinitions[floorItem.item.id];
     const itemName = itemDef ? itemDef.name : 'Unknown Item';
     const quantity = floorItem.item.quantity > 1 ? ` (${floorItem.item.quantity})` : '';
     
@@ -2938,7 +2967,7 @@ function showGroundContextMenu(event, worldX, worldY) {
 
 // Create drag preview element
 function createDragPreview(item, x, y) {
-  const itemDef = itemDefinitions[item.id];
+  const itemDef = fallbackItemDefinitions[item.id];
   if (!itemDef) return;
   
   // Remove any existing drag preview
@@ -3220,7 +3249,7 @@ function depositItemToBank(inventorySlot) {
   const item = playerInventory[inventorySlot];
   if (!item) return false;
   
-  const itemDef = itemDefinitions[item.id];
+  const itemDef = fallbackItemDefinitions[item.id];
   if (!itemDef) return false;
   
   console.log(`BANK: Depositing ${item.quantity || 1} ${itemDef.name}(s) to bank`);
@@ -3260,7 +3289,7 @@ function withdrawItemFromBank(bankSlot) {
   const item = bankStorage[bankSlot];
   if (!item) return false;
   
-  const itemDef = itemDefinitions[item.id];
+  const itemDef = fallbackItemDefinitions[item.id];
   if (!itemDef) return false;
   
   console.log(`BANK: Withdrawing 1 ${itemDef.name} from bank`);
@@ -3319,7 +3348,7 @@ function updateBankDisplay() {
     const item = bankStorage[index];
     
     if (item) {
-      const itemDef = itemDefinitions[item.id];
+      const itemDef = fallbackItemDefinitions[item.id];
       if (itemDef) {
         slot.classList.add('occupied');
         const tintStyle = itemDef.colorTint ? `color: ${itemDef.colorTint};` : '';
@@ -3356,7 +3385,7 @@ function updateBankInventoryDisplay() {
     const item = playerInventory[index];
     
     if (item) {
-      const itemDef = itemDefinitions[item.id];
+      const itemDef = fallbackItemDefinitions[item.id];
       if (itemDef) {
         slot.classList.add('occupied');
         const tintStyle = itemDef.colorTint ? `color: ${itemDef.colorTint};` : '';

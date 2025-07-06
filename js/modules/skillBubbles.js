@@ -96,10 +96,22 @@ function showSkillBubble(skillName, customText = null, customIcon = null) {
     return;
   }
   
-  // Create bubble container
+  // Get the game world container (same as online player bubbles)
+  const gameWorld = document.querySelector('.game-world') || document.getElementById('game-world');
+  if (!gameWorld) {
+    console.error('Game world container not found for skill bubble');
+    return;
+  }
+  
+  // Create bubble container positioned relative to game world instead of player
   const bubbleContainer = document.createElement('div');
   bubbleContainer.className = 'skill-bubble-container';
   bubbleContainer.id = 'active-skill-bubble';
+  
+  // Apply positioning styles similar to online player bubbles
+  bubbleContainer.style.position = 'absolute';
+  bubbleContainer.style.zIndex = '16'; // Higher than speech bubbles (15)
+  bubbleContainer.style.pointerEvents = 'none';
   
   // Create bubble
   const bubble = document.createElement('div');
@@ -127,8 +139,46 @@ function showSkillBubble(skillName, customText = null, customIcon = null) {
   bubble.appendChild(tail);
   bubbleContainer.appendChild(bubble);
   
-  // Add to player
-  playerElement.appendChild(bubbleContainer);
+  // Add to game world instead of player element
+  gameWorld.appendChild(bubbleContainer);
+  
+  // Function to update bubble position relative to player (same logic as online player bubbles)
+  function updateBubblePosition() {
+    if (!bubbleContainer.parentNode || !playerElement.parentNode) {
+      return; // Bubble or player was removed
+    }
+    
+    // For main player, we can use the direct style positions which are more stable
+    const playerLeft = parseInt(playerElement.style.left) || 0;
+    const playerTop = parseInt(playerElement.style.top) || 0;
+    const playerWidth = playerElement.offsetWidth || (window.worldModule?.getGridSize() || 32);
+
+    // Screen-space centre of the player
+    const bubbleX = playerLeft + (playerWidth / 2);
+    const bubbleHeight = bubbleContainer.offsetHeight || 40;
+    const bubbleY = playerTop - bubbleHeight - 15; // 15 px gap above
+
+    // Only update if position changed significantly to reduce jitter
+    const currentLeft = parseInt(bubbleContainer.style.left) || 0;
+    const currentTop = parseInt(bubbleContainer.style.top) || 0;
+    const threshold = 2; // Pixel threshold for updates
+    
+    if (Math.abs(currentLeft - bubbleX) > threshold || Math.abs(currentTop - bubbleY) > threshold) {
+      bubbleContainer.style.left = `${bubbleX}px`;
+      bubbleContainer.style.top = `${bubbleY}px`;
+    }
+  }
+
+  // Update position initially
+  updateBubblePosition();
+
+  // Update position periodically, but less frequently to reduce jitter
+  let updateInterval = setInterval(() => {
+    updateBubblePosition();
+  }, 50); // Reduced from every frame to every 50ms for stability
+  
+  // Store the update interval so we can clean it up when hiding the bubble
+  bubbleContainer._updateInterval = updateInterval;
   
   // Track the active bubble
   activeSkillBubbles.set('player', {
@@ -150,6 +200,11 @@ function showSkillBubble(skillName, customText = null, customIcon = null) {
 function hideSkillBubble() {
   const existingBubble = document.getElementById('active-skill-bubble');
   if (existingBubble) {
+    // Clear the update interval
+    if (existingBubble._updateInterval) {
+      clearInterval(existingBubble._updateInterval);
+    }
+    
     existingBubble.remove();
     activeSkillBubbles.delete('player');
     
@@ -217,7 +272,7 @@ function showTemporarySkillBubble(skillName, duration = 2000, customText = null,
   }, duration);
 }
 
-// Export functions for use by other modules
+// Export functions for ES6 module use
 export {
   showSkillBubble,
   hideSkillBubble,
@@ -227,4 +282,4 @@ export {
   addSkillConfig,
   showTemporarySkillBubble,
   SKILL_BUBBLE_CONFIG
-}; 
+};

@@ -56,10 +56,20 @@ const shopDefinitions = {
       steel_sword: { quantity: 5, basePrice: 500, restockAmount: 1 },
       bronze_shield: { quantity: 8, basePrice: 80, restockAmount: 2 },
       iron_shield: { quantity: 6, basePrice: 200, restockAmount: 1 },
-      leather_armor: { quantity: 12, basePrice: 150, restockAmount: 2 }
+      leather_armor: { quantity: 12, basePrice: 150, restockAmount: 2 },
+      shortbow: { quantity: 6, basePrice: 200, restockAmount: 1 },
+      longbow: { quantity: 4, basePrice: 400, restockAmount: 1 },
+      bronze_arrow: { quantity: 500, basePrice: 2, restockAmount: 100 },
+      iron_arrow: { quantity: 300, basePrice: 4, restockAmount: 50 },
+      steel_arrow: { quantity: 200, basePrice: 8, restockAmount: 25 },
+      leather_cape: { quantity: 10, basePrice: 50, restockAmount: 2 },
+      red_cape: { quantity: 5, basePrice: 100, restockAmount: 1 },
+      bronze_ring: { quantity: 15, basePrice: 25, restockAmount: 3 },
+      iron_ring: { quantity: 10, basePrice: 50, restockAmount: 2 },
+      gold_ring: { quantity: 5, basePrice: 200, restockAmount: 1 }
     },
     buysItems: true,
-    acceptedCategories: ['weapons', 'armor'], // Only buys weapons and armor
+    acceptedCategories: ['weapons', 'armor', 'ammunition'], // Added ammunition
     location: { x: 75, y: 30 }
   },
   
@@ -77,7 +87,8 @@ const shopDefinitions = {
       magic_staff: { quantity: 3, basePrice: 800, restockAmount: 1 },
       rune_fire: { quantity: 100, basePrice: 15, restockAmount: 20 },
       rune_water: { quantity: 100, basePrice: 15, restockAmount: 20 },
-      scroll_teleport: { quantity: 10, basePrice: 200, restockAmount: 2 }
+      scroll_teleport: { quantity: 10, basePrice: 200, restockAmount: 2 },
+      blue_cape: { quantity: 3, basePrice: 150, restockAmount: 1 }
     },
     buysItems: true,
     acceptedCategories: ['magic', 'potions', 'runes'],
@@ -635,28 +646,32 @@ function sellItem(quantity) {
 
 // Calculate buy price for an item
 function calculateBuyPrice(itemId) {
-  const stockInfo = currentShop.stock[itemId];
-  if (!stockInfo) return 0;
-  
-  const basePrice = stockInfo.basePrice;
-  const multiplier = currentShop.buyMultiplier;
+  const stockInfo = currentShop?.stock?.[itemId] || {};
+  const basePrice = (typeof stockInfo.basePrice === 'number' && !isNaN(stockInfo.basePrice))
+                    ? stockInfo.basePrice
+                    : getBaseItemPrice(itemId);
+  const multiplier = currentShop.buyMultiplier || 1;
   
   // Add some price fluctuation based on stock levels
-  const stockRatio = stockInfo.quantity / MAX_SHOP_STOCK;
+  const stockRatio = (stockInfo.quantity ?? MAX_SHOP_STOCK) / MAX_SHOP_STOCK;
   const fluctuation = 1 + (PRICE_FLUCTUATION * (1 - stockRatio));
   
-  return Math.floor(basePrice * multiplier * fluctuation);
+  const price = basePrice * multiplier * fluctuation;
+  return Math.max(1, Math.floor(isFinite(price) ? price : getBaseItemPrice(itemId)));
 }
 
 // Calculate sell price for an item
 function calculateSellPrice(itemId) {
-  const stockInfo = currentShop.stock[itemId];
-  const basePrice = stockInfo?.basePrice || getBaseItemPrice(itemId);
+  const stockInfo = currentShop?.stock?.[itemId] || {};
+  const basePrice = (typeof stockInfo.basePrice === 'number' && !isNaN(stockInfo.basePrice))
+                    ? stockInfo.basePrice
+                    : getBaseItemPrice(itemId);
   
   if (!basePrice) return 1; // Minimum 1 coin
   
-  const multiplier = currentShop.sellMultiplier;
-  return Math.floor(basePrice * multiplier);
+  const multiplier = currentShop.sellMultiplier || 0.5;
+  const price = basePrice * multiplier;
+  return Math.max(1, Math.floor(isFinite(price) ? price : 1));
 }
 
 // Check if the shop will buy a specific item
